@@ -1,0 +1,8 @@
+# Useful Code Snippets
+
+## GEO Navigation
+
+- Here is the query used to find correct GEO DataSets (Series).
+	```
+	("high throughput sequencing"[Platform Technology Type] NOT ("0"[Number of Samples] OR "1"[Number of Samples] OR "2"[Number of Samples] OR "3"[Number of Samples] OR "4"[Number of Samples] OR "5"[Number of Samples] OR "6"[Number of Samples] OR "7"[Number of Samples] OR "8"[Number of Samples] OR "9"[Number of Samples] OR "10"[Number of Samples] OR "11"[Number of Samples] OR "12"[Number of Samples] OR "13"[Number of Samples] OR "14"[Number of Samples] OR "15"[Number of Samples] OR "16"[Number of Samples] OR "17"[Number of Samples] OR "18"[Number of Samples] OR "19"[Number of Samples] OR "20"[Number of Samples] OR "21"[Number of Samples] OR "22"[Number of Samples] OR "23"[Number of Samples] OR "24"[Number of Samples] OR "25"[Number of Samples] OR "26"[Number of Samples] OR "27"[Number of Samples] OR "28"[Number of Samples] OR "29"[Number of Samples] OR "30"[Number of Samples] OR "31"[Number of Samples] OR "32"[Number of Samples] OR "33"[Number of Samples] OR "34"[Number of Samples] OR "35"[Number of Samples] OR "36"[Number of Samples] OR "37"[Number of Samples] OR "38"[Number of Samples] OR "39"[Number of Samples] OR "40"[Number of Samples] OR "41"[Number of Samples] OR "42"[Number of Samples] OR "43"[Number of Samples] OR "44"[Number of Samples] OR "45"[Number of Samples] OR "46"[Number of Samples] OR "47"[Number of Samples] OR "48"[Number of Samples] OR "49"[Number of Samples] OR "50"[Number of Samples])) AND "csv"[Supplementary Files] AND "gse"[Filter]
+	```

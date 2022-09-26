@@ -47,18 +47,22 @@ unloggedhgnc$Range <- unloggedhgnc[, Max-Min]
 unloggedhgnc <- unloggedhgnc[, c("ensembl_gene_id", "hgnc_symbol", "Range")]
 w <- ggplot(unloggedhgnc, aes(x=Range, ..scaled..)) + geom_density()
 countsdatafilteredhgnc <- (mapped_data[countsdata, nomatch=0])
-rangedcountsdatafilteredhgnc <- countsdatafilteredhgnc
+rangedcountsdatafilteredhgnc <- data.table(countsdatafilteredhgnc)
 rangedcountsdatafilteredhgnc$Max <- apply(rangedcountsdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = max, na.rm = TRUE)
+rangedcountsdatafilteredhgnc$Min <- apply(rangedcountsdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = min, na.rm = TRUE)
 rangedcountsdatafilteredhgnc <- rangedcountsdatafilteredhgnc[Max != 0]
-rangedcountsdatafilteredhgnc <- rangedcountsdatafilteredhgnc[, !"Max", with=FALSE]
+rangedcountsdatafilteredhgnc <- rangedcountsdatafilteredhgnc[Min != 0]
+rangedcountsdatafilteredhgnc <- rangedcountsdatafilteredhgnc[, !c("Min", "Max"), with=FALSE]
 rangedcountsdatafilteredhgnc[, 3:58] <- log(rangedcountsdatafilteredhgnc[, 3:58], 2)
 rangedcountsdatafilteredhgnc$Max <- apply(rangedcountsdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = max, na.rm = TRUE)
 rangedcountsdatafilteredhgnc$Min <- apply(rangedcountsdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = min, na.rm = TRUE)
 rangedcountsdatafilteredhgnc$Range <- rangedcountsdatafilteredhgnc[, Max-Min]
 rangedcountsdatafilteredhgnc <- rangedcountsdatafilteredhgnc[, c("ensembl_gene_id", "hgnc_symbol", "Range")]
 s <- ggplot(rangedcountsdatafilteredhgnc, aes(x=Range)) + geom_density()
-genelengths <- getGeneLengthAndGCContent(countsdatafilteredhgnc$ensembl_gene_id, "hsa")
+dups <- rangedcountsdatafilteredhgnc[duplicated(rangedcountsdatafilteredhgnc$hgnc_symbol), ]
+genelengths <- getGeneLengthAndGCContent(rangedcountsdatafilteredhgnc$ensembl_gene_id, org="hsa")
 # countsdf <- (data.frame(countsdata)) %>% tibble::column_to_rownames("gene_id")
 # dds <- DESeqDataSetFromMatrix(countData = countsdf,
 #                               colData = metadata,
 #                               design = ~ condition)
+genelengthstable <- setDT(as.data.frame(genelengths), keep.rownames = "ensembl_gene_id")

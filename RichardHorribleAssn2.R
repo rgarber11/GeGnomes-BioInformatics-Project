@@ -1,68 +1,64 @@
+#Dependencies
 if (!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
-BiocManager::install(c("biomaRt","org.Hs.eg.db", "DESeq2", "EDASeq"))
+BiocManager::install(c("biomaRt", "DESeq2", "EDASeq"))
 if (!require("data.table")) install.packages("data.table")
 library(tidyverse)
 library(data.table)
-library(magrittr)
-library(org.Hs.eg.db)
 library(biomaRt)
 library("DESeq2")
 library("EDASeq")
 library("ggplot2")
-countsdata <- fread("GSE207751_PBMC_counts.csv")
-normbatchcorrecteddata <- fread("GSE207751_IMSA_PBMC_normandbatchcorrected.csv")
+#Load Necessary Data
+counts_data <- fread("GSE207751_PBMC_counts.csv")
 metadata <- fread("GSE207751_PBMC_metadata.csv")
 mart <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
-mapped_data <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol"), filters = "ensembl_gene_id", values = countsdata$gene_id, mart=mart)
-map2_data <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol"), filters = "ensembl_gene_id", values = normbatchcorrecteddata$V1, mart=mart)
-mappeddataAnnotation <- mapIds(
-  org.Hs.eg.db,
-  keys = normbatchcorrecteddata$V1,
-  keytype = "ENSEMBL",
-  column = "SYMBOL",
-  multiVals = "list"
-)
-mapped_data_org_df <- mappeddataAnnotation %>% tibble::enframe(name = "Ensembl", value = "Symbol") %>% tidyr::unnest(cols = Symbol)
-mapped_data_org_df_filtered <- mapped_data_org_df[complete.cases(mapped_data_org_df),]
-
+#Use biomaRt to convert to from Ensembl to hgnc
+mapped_data <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol"), filters = "ensembl_gene_id", values = counts_data$gene_id, mart=mart)
+#Remove ones without map
 mapped_data <-  data.table(mapped_data[!(is.na(mapped_data$hgnc_symbol) | mapped_data$hgnc_symbol==""), ])
-map2_data <-  data.table(map2_data[!(is.na(map2_data$hgnc_symbol) | map2_data$hgnc_symbol==""), ])
+#combine tables
 setkey(mapped_data, "ensembl_gene_id")
-setkey(map2_data, "ensembl_gene_id")
-setkey(countsdata, "gene_id")
-setkey(normbatchcorrecteddata, "V1")
-normdatafilteredhgnc <- (map2_data[normbatchcorrecteddata, nomatch=0])
-rangednormdatafilteredhgnc <- normdatafilteredhgnc
-rangednormdatafilteredhgnc[, 3:58] <- log(rangednormdatafilteredhgnc[, 3:58], 2)
-rangednormdatafilteredhgnc$Max <- apply(rangednormdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = max, na.rm = TRUE)
-rangednormdatafilteredhgnc$Min <- apply(rangednormdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = min, na.rm = TRUE)
-rangednormdatafilteredhgnc$Range <- rangednormdatafilteredhgnc[, Max-Min]
-rangednormdatafilteredhgnc <- rangednormdatafilteredhgnc[, c("ensembl_gene_id", "hgnc_symbol", "Range")]
-p <- ggplot(rangednormdatafilteredhgnc, aes(x=Range)) + geom_density()
-unloggedhgnc <- normdatafilteredhgnc
-unloggedhgnc$Max <- apply(unloggedhgnc[, 3:58], MARGIN = 1, FUN = max, na.rm = TRUE)
-unloggedhgnc$Min <- apply(unloggedhgnc[, 3:58], MARGIN = 1, FUN = min, na.rm = TRUE)
-unloggedhgnc$Range <- unloggedhgnc[, Max-Min]
-unloggedhgnc <- unloggedhgnc[, c("ensembl_gene_id", "hgnc_symbol", "Range")]
-w <- ggplot(unloggedhgnc, aes(x=Range, ..scaled..)) + geom_density()
-countsdatafilteredhgnc <- (mapped_data[countsdata, nomatch=0])
-rangedcountsdatafilteredhgnc <- data.table(countsdatafilteredhgnc)
-rangedcountsdatafilteredhgnc$Max <- apply(rangedcountsdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = max, na.rm = TRUE)
-rangedcountsdatafilteredhgnc$Min <- apply(rangedcountsdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = min, na.rm = TRUE)
-rangedcountsdatafilteredhgnc <- rangedcountsdatafilteredhgnc[Max != 0]
-rangedcountsdatafilteredhgnc <- rangedcountsdatafilteredhgnc[Min != 0]
-rangedcountsdatafilteredhgnc <- rangedcountsdatafilteredhgnc[, !c("Min", "Max"), with=FALSE]
-rangedcountsdatafilteredhgnc[, 3:58] <- log(rangedcountsdatafilteredhgnc[, 3:58], 2)
-rangedcountsdatafilteredhgnc$Max <- apply(rangedcountsdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = max, na.rm = TRUE)
-rangedcountsdatafilteredhgnc$Min <- apply(rangedcountsdatafilteredhgnc[, 3:58], MARGIN = 1, FUN = min, na.rm = TRUE)
-rangedcountsdatafilteredhgnc$Range <- rangedcountsdatafilteredhgnc[, Max-Min]
-rangedcountsdatafilteredhgnc <- rangedcountsdatafilteredhgnc[, c("ensembl_gene_id", "hgnc_symbol", "Range")]
-s <- ggplot(rangedcountsdatafilteredhgnc, aes(x=Range)) + geom_density()
-dups <- rangedcountsdatafilteredhgnc[duplicated(rangedcountsdatafilteredhgnc$hgnc_symbol), ]
-genelengths <- getGeneLengthAndGCContent(rangedcountsdatafilteredhgnc$ensembl_gene_id, org="hsa")
-# countsdf <- (data.frame(countsdata)) %>% tibble::column_to_rownames("gene_id")
-# dds <- DESeqDataSetFromMatrix(countData = countsdf,
-#                               colData = metadata,
-#                               design = ~ condition)
-genelengthstable <- setDT(as.data.frame(genelengths), keep.rownames = "ensembl_gene_id")
+setkey(counts_data, "gene_id")
+
+counts_data_filtered_hgnc <- (mapped_data[counts_data, nomatch=0])
+#Remove data where min samples is 0, since it messes with log
+counts_data_filtered_hgnc$Min <- apply(counts_data_filtered_hgnc[, 3:58], MARGIN = 1, FUN = min, na.rm = TRUE)
+counts_data_filtered_hgnc <- counts_data_filtered_hgnc[Min != 0]
+counts_data_filtered_hgnc <- counts_data_filtered_hgnc[, !"Min", with=FALSE]
+#If gene_lengths have been found, no need to refind them
+if(file.exists("gene_lengths.csv")) {
+  gene_lengths_table <- fread("gene_lengths.csv")
+} else {
+  gene_lengths <- getGeneLengthAndGCContent(rangedcounts_data_filtered_hgnc$ensembl_gene_id, org="hsa")
+  gene_lengths_table <- setDT(as.data.frame(gene_lengths), keep.rownames = "ensembl_gene_id")
+  fwrite(gene_lengths_table, "gene_lengths.csv")
+}
+#Normalize Counts
+gene_lengths_table$length <- gene_lengths_table$length / 1000;
+gene_lengths_table <- gene_lengths_table[, c("ensembl_gene_id", "length")]
+setkey(gene_lengths_table, "ensembl_gene_id")
+tpm_counts_data <- gene_lengths_table[counts_data_filtered_hgnc, nomatch=0]
+tpm_counts_data <- tpm_counts_data %>% mutate(across(c(4:59), .fns= ~./length))
+tpm_counts_data <- tpm_counts_data %>% mutate(across(c(4:59), .fns=~./(sum(.)/1000000)))
+tpm_counts_data <- tpm_counts_data[, !"length", with=FALSE]
+
+#Log specify
+log_tpm_counts <- tpm_counts_data
+log_tpm_counts[, 3:58] <- log(log_tpm_counts[, 3:58], 2)
+log_tpm_counts$Min <- apply(log_tpm_counts[, 3:58], MARGIN=1, FUN=min, na.rm=TRUE)
+log_tpm_counts$Max <- apply(log_tpm_counts[, 3:58], MARGIN=1, FUN=max, na.rm=TRUE)
+log_tpm_counts$Range <- log_tpm_counts[, Max-Min]
+# Create density plot
+density_plot_table <- log_tpm_counts[, c("ensembl_gene_id", "hgnc_symbol", "Range")]
+density_plot <- ggplot(density_plot_table, aes(x=Range)) + geom_density()
+density_plot
+#PCA Plot
+counts_df <- (data.frame(counts_data_filtered_hgnc[, !c("hgnc_symbol"), with=FALSE])) %>% tibble::column_to_rownames("ensembl_gene_id")
+dds <- DESeqDataSetFromMatrix(countData = counts_df,
+                               colData = metadata,
+                               design = ~ condition)
+vsd <- vst(dds, blind=FALSE)
+pca_plot <- plotPCA(vsd, intgroup="condition")
+pca_plot
+dups <- counts_data_filtered_hgnc[duplicated(counts_data_filtered_hgnc$hgnc_symbol), ]

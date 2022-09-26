@@ -1,0 +1,84 @@
+---
+title: "Analyzing Counts Data"
+output: html_document
+date: "2022-09-23"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(DESeq2)
+library(fuzzyjoin)
+
+metadata <- read_csv("GSE207751_PBMC_metadata.csv")
+
+expression_data <- read_csv("expression_mapped_symbol_ids.csv")
+# getting rid of NA rows
+expression_data <- na.omit(expression_data)
+
+# getting rid of ENSEMBL column and column with multiple mapped symbol ids and fixing name of Gene ID column
+expression_data <- expression_data[-c(1,3)]
+colnames(expression_data)[1] <- "Gene ID"
+
+#storing gene ids to add back to deseq_df later.
+Gene_IDs <- expression_data[1]
+
+head(expression_data)
+```
+```{r}
+# this removes the gene id to make it so we can run the DESeq function. I was trying to find a way to add it as a metadata column but could not get it to work.
+expression_data <- expression_data %>% dplyr::select(metadata$Patient_id)
+
+head(expression_data)
+```
+
+```{r}
+ddset <- DESeqDataSetFromMatrix( 
+    countData = expression_data, # Here we supply non-normalized count data 
+    colData = metadata, # Supply the `colData` with our metadata data frame 
+    design = ~condition) # Supply our experimental variable to `design` 
+ddset <- DESeq(ddset)
+```
+
+
+```{r}
+# adding Gene ID's to metadata for the object in case required for plotting information
+# mcols(ddset) <- DataFrame(mcols(ddset), Gene_IDs) I don't think it works actually so commenting it out for now.
+
+
+# I think this is how we do the PCA plot? Still have to do the density thing mentioned at the very beginning, not sure how to go about doing that / at what stage of the data process we do it. Also below I tried to do the TSNE plot but couldn't get it working, nor the UMAP plot.
+plotPCA(DESeqTransform(ddset))
+
+library(M3C)
+head(results(ddset))
+#tsne(as.data.frame(results(ddset))) # <-- doesn't work properly. Not sure if I'm using the right data. I think it has to be before we run it through the lfcShrink command later
+
+# "perplexity too large for number of samples" <-- we need to check with Graim about this tomorrow.
+```
+
+```{r}
+deseq_results <- results(ddset)
+head(deseq_results)
+deseq_results <- lfcShrink(
+  ddset, # The original DESeq2 object after running DESeq()
+  coef = 2, # The log fold change coefficient used in DESeq(); the default is 2.
+  res = deseq_results # The original DESeq2 results table
+)
+
+```
+
+```{r}
+deseq_df <- as.data.frame(deseq_results)
+deseq_df <- deseq_df %>% mutate(Gene_IDs,
+                    .before="baseMean")
+# added back Gene IDs
+
+# we have many NA values so run this again to get rid of NAs.
+deseq_df <- na.omit(deseq_df)
+
+
+head(deseq_df)
+```
+

@@ -1,0 +1,129 @@
+---
+title: "Preforming Differential Analysis"
+---
+```{r}
+#Code chunk taken from https://alexslemonade.github.io/refinebio-examples/03-rnaseq/differential-expression_rnaseq_01.html. Which was provided in the project instructions.
+
+# Create the data folder if it doesn't exist
+if (!dir.exists("data")) {
+  dir.create("data")
+}
+
+# Define the file path to the plots directory
+plots_dir <- "plots"
+
+# Create the plots folder if it doesn't exist
+if (!dir.exists(plots_dir)) {
+  dir.create(plots_dir)
+}
+
+# Define the file path to the results directory
+results_dir <- "results"
+
+# Create the results folder if it doesn't exist
+if (!dir.exists(results_dir)) {
+  dir.create(results_dir)
+}
+```
+
+```{r}
+if (!("DESeq2" %in% installed.packages())) {
+  # Install this package if it isn't installed yet
+  BiocManager::install("DESeq2", update = FALSE)
+}
+if (!("EnhancedVolcano" %in% installed.packages())) {
+  # Install this package if it isn't installed yet
+  BiocManager::install("EnhancedVolcano", update = FALSE)
+}
+if (!("apeglm" %in% installed.packages())) {
+  # Install this package if it isn't installed yet
+  BiocManager::install("apeglm", update = FALSE)
+}
+```
+
+```{r}
+# Attach the DESeq2 library
+library(DESeq2)
+
+# Attach the ggplot2 library for plotting
+library(ggplot2)
+
+# We will need this so we can use the pipe: %>%
+library(magrittr)
+
+library(tidyverse)
+
+library(fuzzyjoin)
+```
+
+```{r}
+#Read in meta data and raw expression data.
+metadata <- read_csv("GSE207751_PBMC_metadata.csv")
+
+expression_data <- read_csv("fixed_raw_counts.csv")
+
+#storing gene ids to add back to deseq_df later.
+Gene_IDs <- expression_data[1]
+
+#removes first coloumn with gene names
+gene_matrix <- expression_data[,-1]
+
+# round all expression counts
+gene_matrix <- round(gene_matrix)
+```
+
+
+```{r}
+ddset <- DESeqDataSetFromMatrix(
+  # Here we supply non-normalized count data
+  countData = gene_matrix,
+  # Supply the `colData` with our metadata data frame
+  colData = metadata,
+  # Supply our experimental variable to `design`
+  design = ~condition
+)
+
+deseq_data <- DESeq(ddset)
+```
+
+```{r}
+deseq_results <- results(deseq_data)
+```
+
+```{r}
+deseq_results <- lfcShrink(
+  deseq_data, # The original DESeq2 object after running DESeq()
+  coef = 2, # The log fold change coefficient used in DESeq(); the default is 2.
+  res = deseq_results # The original DESeq2 results table
+)
+```
+
+```{r}
+deseq_df <- as.data.frame(deseq_results)
+deseq_df <- deseq_df %>% mutate(Gene_IDs,
+                    .before="baseMean")%>%
+  # add a column for significance threshold results
+  dplyr::mutate(threshold = padj < 0.05) %>%
+  # sort by statistic -- the highest values will be genes with
+  # higher expression in RPL10 mutated samples
+  dplyr::arrange(dplyr::desc(log2FoldChange))
+```
+
+
+```{r}
+head(deseq_df)
+```
+```{r}
+# We'll assign this as `volcano_plot`
+volcano_plot <- EnhancedVolcano::EnhancedVolcano(
+  deseq_df,
+  lab = deseq_df$Gene,
+  x = "log2FoldChange",
+  y = "padj",
+  pCutoff = 0.01 # Loosen the cutoff since we supplied corrected p-values
+)
+
+volcano_plot
+
+```
+

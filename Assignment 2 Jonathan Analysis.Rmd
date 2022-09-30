@@ -153,7 +153,39 @@ volcano_plot <- EnhancedVolcano::EnhancedVolcano(
 volcano_plot
 
 ```
+As the volcano plot shows, we had zero statistically significant differentially expressed genes. Therefore, we will try to continue our analysis with genes that were differentially expressed based on log-fold change.
+
+```{r}
+diffex_df <- deseq_df[deseq_df$log2FoldChange > 1,]
+diffex_df <- full_join(diffex_df, deseq_df[deseq_df$log2FoldChange < -1,])
+head(diffex_df)
+```
+
 Part 4:
 ```{r}
+#FIXME
+library(ComplexHeatmap)
+Heatmap(diffex_df)
+```
+Part 5:
+```{r}
+#Gene Ontologies, using Biological Processes (BP), Cellular Component (CC), and REAC (pathway database)
 
+library(gprofiler2)
+gostres <- gost(diffex_df$Gene, sources = "GO:BP")
+gostres2 <- gost(diffex_df$Gene, sources = "GO:CC")
+gostres3 <- gost(diffex_df$Gene, sources = "REAC")
+# BP Table
+head(gostres$result)
+
+# CC Table
+head(gostres2$result)
+
+# REAC Table
+head(gostres3$result)
+
+#plots of each respective GO query with highlighted terms attached for additional information
+pp1 <- publish_gostplot(gostplot(gostres, capped = TRUE, interactive = FALSE), highlight_terms = gostres$result[c(1:3),])
+pp2 <- publish_gostplot(gostplot(gostres2, capped = TRUE, interactive = FALSE), highlight_terms = gostres2$result[c(1:6),])
+pp3 <- publish_gostplot(gostplot(gostres3, capped = TRUE, interactive = FALSE), highlight_terms = gostres3$result[c(1),])
 ```

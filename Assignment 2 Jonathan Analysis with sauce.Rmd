@@ -173,15 +173,19 @@ diffex_logs <- log_tpm_counts[hgnc_symbol %in% diffex_genes]
 diffex_logs <- diffex_logs[, !c("Min", "Max", "Range"), with=FALSE]
 #Next, I separate the data based on condition, and compute the mean log values for each gene by condition.
 ast_patients <- metadata[condition == "ast"]$Patient_id
-ast_cols <- names(diffex_logs[, ..ast_patients])
-setnames(diffex_logs, ast_cols, paste0("AST ", ast_cols))
+setnames(diffex_logs, ast_patients, paste0("AST ", ast_patients))
 healthy_patients <- metadata[condition == "healthy"]$Patient_id
-healthy_cols <- names(diffex_logs[, ..healthy_patients])
-setnames(diffex_logs, healthy_cols, paste0("HEALTHY ", healthy_cols))
+setnames(diffex_logs, healthy_patients, paste0("HEALTHY ", healthy_patients))
 heatmap_df <- as.data.frame(diffex_logs) %>% tibble::column_to_rownames("hgnc_symbol")
+healthy_cols <- paste0("HEALTHY ", healthy_patients)
+healthy_vals <- diffex_logs[, ..healthy_cols]
+healthy_vals$Median <- apply(healthy_vals, MARGIN=1, FUN = median, na.rm=TRUE)
+ast_cols <- paste0("AST ", ast_patients)
+ast_vals <- diffex_logs[, ..ast_cols]
+ast_vals$Median <- apply(ast_vals, MARGIN=1, FUN = median, na.rm=TRUE)
 heatmap_df <- t(heatmap_df)
-col_fun = colorRamp2(c(0, 5, 10), c("blue", "white", "red"))
-Heatmap(heatmap_df, name = "Log2 Normalized Expression", col = col_fun, column_title = "Expression of Differentially Expressed Genes")
+ha1 <- HeatmapAnnotation("healthy (Median)" = healthy_vals$Median, "ast (Median)" = ast_vals$Median)
+Heatmap(heatmap_df, name = "Log2 Normalized Expression", column_title = "Expression of Differentially Expressed Genes", top_annotation = ha1)
 ```
 Part 5:
 ```{r}

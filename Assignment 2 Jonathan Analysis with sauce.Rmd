@@ -12,15 +12,14 @@ Part 1:
 #Dependencies
 if (!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
-BiocManager::install(c("biomaRt", "DESeq2", "EDASeq", "M3C", "EnhancedVolcano", "ComplexHeatmap"))
-if (!require("data.table")) install.packages("data.table")
+BiocManager::install(c("biomaRt", "DESeq2", "EDASeq", "M3C", "EnhancedVolcano", "ComplexHeatmap", "svglite", "data.table"))
 library(tidyverse)
 library(data.table)
 library(biomaRt)
 library("DESeq2")
 library("EDASeq")
 library("ggplot2")
-
+library("svglite")
 #Load Necessary Data
 counts_data <- fread("GSE207751_PBMC_counts.csv")
 counts_data$Sum <- apply(counts_data[, 3:57], MARGIN = 1, FUN = sum, na.rm = TRUE)
@@ -98,10 +97,12 @@ pca_plot
 library(M3C)
 vsd_data <- assay(vsd)
 tsne_plot <- tsne(vsd_data, labels = metadata$condition) + ggtitle("TSNE Plot of VST Data")
+tsne_plot
 ```
 ```{r}
 #Trying UMAP
 umap_plot <- umap(vsd_data, labels = metadata$condition) + ggtitle("UMAP of VST Data")
+umap_plot
 ```
 Part 3: 
 ```{r}
@@ -164,7 +165,6 @@ head(diffex_df)
 
 Part 4:
 ```{r}
-#FIXME
 library(ComplexHeatmap)
 library(circlize)
 #Getting the log_tpm_counts for the differentially expressed genes. I'm using log since it makes our scale smaller, and since differences in gene expression are more important relative to how much the gene was already expressed, rather than absolute values.
@@ -177,15 +177,20 @@ setnames(diffex_logs, ast_patients, paste0("AST ", ast_patients))
 healthy_patients <- metadata[condition == "healthy"]$Patient_id
 setnames(diffex_logs, healthy_patients, paste0("HEALTHY ", healthy_patients))
 heatmap_df <- as.data.frame(diffex_logs) %>% tibble::column_to_rownames("hgnc_symbol")
-healthy_cols <- paste0("HEALTHY ", healthy_patients)
+healthy_cols <- c("hgnc_symbol", paste0("HEALTHY ", healthy_patients))
 healthy_vals <- diffex_logs[, ..healthy_cols]
-healthy_vals$Median <- apply(healthy_vals, MARGIN=1, FUN = median, na.rm=TRUE)
-ast_cols <- paste0("AST ", ast_patients)
+healthy_vals$"Healthy Median" <- apply(healthy_vals[, 2:15], MARGIN=1, FUN = median, na.rm=TRUE)
+healthy_vals <- healthy_vals[, `Healthy Median`:=as.numeric(`Healthy Median`)]
+healthy_matrix <- as.matrix(as.data.frame(healthy_vals[, c("hgnc_symbol", "Healthy Median")]) %>% tibble::column_to_rownames("hgnc_symbol"))
+ast_cols <- c("hgnc_symbol", paste0("AST ", ast_patients))
 ast_vals <- diffex_logs[, ..ast_cols]
-ast_vals$Median <- apply(ast_vals, MARGIN=1, FUN = median, na.rm=TRUE)
+ast_vals$"AST Median" <- apply(ast_vals, MARGIN=1, FUN = median, na.rm=TRUE)
+ast_vals <- ast_vals[, "AST Median":=as.numeric(`AST Median`)]
+ast_matrix <- as.matrix(as.data.frame(ast_vals[, c("hgnc_symbol", "AST Median")]) %>% tibble::column_to_rownames("hgnc_symbol"))
 heatmap_df <- t(heatmap_df)
-ha1 <- HeatmapAnnotation("healthy (Median)" = healthy_vals$Median, "ast (Median)" = ast_vals$Median)
-Heatmap(heatmap_df, name = "Log2 Normalized Expression", column_title = "Expression of Differentially Expressed Genes", top_annotation = ha1)
+ha1 <- HeatmapAnnotation("healthy (Median)" = healthy_matrix, "ast (Median)" = ast_matrix)
+ht <- Heatmap(heatmap_df, name = "Log2 Normalized Expression", column_title = "Expression of Differentially Expressed Genes", top_annotation = ha1)
+draw(ht)
 ```
 Part 5:
 ```{r}

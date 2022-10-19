@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(data.table)
+library(cluster)
 
 log_tpm_counts <- fread("fixed_logged_normalized_counts.csv")
 
@@ -34,4 +35,28 @@ hundred_log_tpm_counts <- plusvar_log_tpm_counts[1:100,1:57]
 onek_log_tpm_counts <- plusvar_log_tpm_counts[1:1000,1:57]
 fivek_log_tpm_counts <- plusvar_log_tpm_counts[1:5000,1:57]
 tenk_log_tpm_counts <- plusvar_log_tpm_counts[1:10000,1:57]
+```
+
+```{r}
+library(factoextra)
+# helps figure out optimal number of clusters for PAM per:
+# https://mlforanalytics.com/2020/05/23/pam-clustering-using-r/
+fviz_nbclust(fivek_log_tpm_counts[,2:57], pam, method ="silhouette")+theme_minimal()
+```
+
+```{r}
+pamResults <- pam(fivek_log_tpm_counts[,2:57], 2)
+
+```
+
+
+```{r}
+fviz_cluster(pamResults, 
+             palette =c("#007892","#D9455F"),
+             ellipse.type ="euclid",
+             repel =TRUE,
+             ggtheme =theme_minimal())
+# need to flip dataset so that cluster can be a column for each sample
+# fivek_log_tpm_counts$cluster <- pamResult$cluster
+
 ```

@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(data.table)
+library(ggfortify)
 library(cluster)
 
 log_tpm_counts <- fread("fixed_logged_normalized_counts.csv")
@@ -41,22 +42,38 @@ tenk_log_tpm_counts <- plusvar_log_tpm_counts[1:10000,1:57]
 library(factoextra)
 # helps figure out optimal number of clusters for PAM per:
 # https://mlforanalytics.com/2020/05/23/pam-clustering-using-r/
-fviz_nbclust(fivek_log_tpm_counts[,2:57], pam, method ="silhouette")+theme_minimal()
+# fviz_nbclust(fivek_log_tpm_counts[,2:57], pam, method ="silhouette")+theme_minimal()
 ```
 
 ```{r}
-pamResults <- pam(fivek_log_tpm_counts[,2:57], 2)
-
+# PAM for fivek dataset
+fivek_pamResults <- pam(fivek_log_tpm_counts[,2:57], 2)
+autoplot(fivek_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("fivek_pamresults.svg",last_plot())
+```
+```{r}
+# PAM for ten dataset
+ten_pamResults <- pam(ten_log_tpm_counts[,2:57], 2) # compare k = 1 & 2 (quite strange)
+autoplot(ten_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("ten_pamresults.svg",last_plot())
 ```
 
+```{r}
+# PAM for hundred dataset
+hundred_pamResults <- pam(hundred_log_tpm_counts[,2:57], 3) # compare k = 2 & 3 (quite strange)
+autoplot(hundred_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("hundred_pamresults.svg",last_plot())
+```
+```{r}
+# PAM for onek dataset
+onek_pamResults <- pam(onek_log_tpm_counts[,2:57], 2) # compare k = 2 & 3 (quite strange)
+autoplot(onek_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("onek_pamresults.svg",last_plot())
+```
 
 ```{r}
-fviz_cluster(pamResults, 
-             palette =c("#007892","#D9455F"),
-             ellipse.type ="euclid",
-             repel =TRUE,
-             ggtheme =theme_minimal())
-# need to flip dataset so that cluster can be a column for each sample
-# fivek_log_tpm_counts$cluster <- pamResult$cluster
-
+# PAM for tenk dataset
+tenk_pamResults <- pam(tenk_log_tpm_counts[,2:57], 2)
+autoplot(tenk_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("tenk_pamresults.svg",last_plot())
 ```

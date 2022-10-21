@@ -103,7 +103,6 @@ onekClust <- data.table(onek_pamResults$clustering)
 fivekClust <- data.table(fivek_pamResults$clustering)
 tenkClust <- data.table(tenk_pamResults$clustering)
 clustInfo <- data.table(colnames(fivek_log_tpm_counts))
-l = list(clustInfo, tenClust, hunClust, onekClust, fivekClust, tenkClust)
 colnames(clustInfo)[1] = "samples"
 clustInfo$ten <- tenClust
 clustInfo$hundred <- hunClust
@@ -116,12 +115,26 @@ is_alluvia_form(clustInfo, axes = 2:6, silent = TRUE)
 ```
 
 ```{r}
+#FIXME: Can't make sample rectangles bigger (PROBS with SANKEY)
 ggplot(clustInfo,
-      aes(axis1 = samples, axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
+     aes(axis1 = samples, axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
   geom_alluvium(aes(fill = ten), width = 1/2, show.legend = FALSE) +
-  geom_stratum(width = 1/4, fill = "blue", color = "grey") +
-  geom_label(stat = "stratum", aes(label = after_stat(stratum),)) +
-  scale_x_discrete(limits = c("samples", "ten"), expand = c(.05, .05)) +
-  #scale_fill_brewer(type = "qual", palette = "Set1") +
+  geom_stratum(width = 1/2, fill = "blue", color = "grey") +
+  geom_stratum(width = 1/2, fill = "#d07cfc", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("samples", "ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
   ggtitle("Sample Clustering Based on # of Observations")
+```
+
+```{r}
+# attempting to do some sort of Chi Square (not sure if any of this is right FYI)
+metadata <- fread("GSE207751_PBMC_metadata.csv")
+metaCondensed <- metadata[,-c(2:5)]
+metaCondensed$condition[metaCondensed$condition=="ast"] <- 1 
+metaCondensed$condition[metaCondensed$condition=="healthy"] <- 2
+chiSqData <- metaCondensed
+chiSqData$fivekData = clustInfo[,5]
+summary <- chisq.test(chiSqData$condition,chiSqData$fivekData)
+#p.adjust(summary$p.value, n=4)
+
 ```

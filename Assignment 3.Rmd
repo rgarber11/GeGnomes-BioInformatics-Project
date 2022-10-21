@@ -1,0 +1,127 @@
+---
+title: "Assignment 3"
+output: html_document
+date: "2022-10-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(data.table)
+library(ggfortify)
+library(cluster)
+library(DESeq2)
+
+log_tpm_counts <- fread("fixed_logged_normalized_counts.csv")
+
+```
+
+
+```{r}
+# creating redundant dataset to make changes to
+plusvar_log_tpm_counts <- log_tpm_counts
+
+# adding variance as a column so we can grab our datasets for clustering
+plusvar_log_tpm_counts$var <- apply(plusvar_log_tpm_counts[, 2:57], MARGIN=1, FUN=var, na.rm=TRUE)
+
+# ordering by highest variance first
+plusvar_log_tpm_counts <- plusvar_log_tpm_counts[order(-var)]
+
+# breaking data into smaller sets for individual clustering
+ten_log_tpm_counts <- plusvar_log_tpm_counts[1:10,1:57]
+hundred_log_tpm_counts <- plusvar_log_tpm_counts[1:100,1:57]
+onek_log_tpm_counts <- plusvar_log_tpm_counts[1:1000,1:57]
+fivek_log_tpm_counts <- plusvar_log_tpm_counts[1:5000,1:57]
+tenk_log_tpm_counts <- plusvar_log_tpm_counts[1:10000,1:57]
+```
+
+```{r}
+library(factoextra)
+# helps figure out optimal number of clusters for PAM per:
+# https://mlforanalytics.com/2020/05/23/pam-clustering-using-r/
+# fviz_nbclust(fivek_log_tpm_counts[,2:57], pam, method ="silhouette")+theme_minimal()
+```
+
+```{r}
+# PAM for fivek dataset
+t_fiveK <- transpose(fivek_log_tpm_counts)
+rownames(t_fiveK) = colnames(fivek_log_tpm_counts)
+
+#colnames(t_fiveK) <- unlist(t_fiveK[1,]) // gives error "colnames don't exist"
+#t_fiveK <- t_fiveK[-1, ] 
+
+fivek_pamResults <- pam(t_fiveK, 2)
+autoplot(fivek_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("fivek_pamresults.svg",last_plot())
+```
+
+```{r}
+# PAM for ten dataset
+t_ten <- transpose(ten_log_tpm_counts)
+rownames(t_ten) = colnames(ten_log_tpm_counts)
+ten_pamResults <- pam(t_ten, 2) 
+autoplot(ten_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("ten_pamresults.svg",last_plot())
+```
+
+```{r}
+# PAM for hundred dataset
+t_hundred <- transpose(hundred_log_tpm_counts)
+rownames(t_hundred) = colnames(hundred_log_tpm_counts)
+hundred_pamResults <- pam(t_hundred, 2) # compare k = 2 & 3 (quite strange)
+autoplot(hundred_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("hundred_pamresults_k_2.svg",last_plot())
+```
+```{r}
+# PAM for onek dataset
+t_onek <- transpose(onek_log_tpm_counts)
+rownames(t_onek) = colnames(onek_log_tpm_counts)
+onek_pamResults <- pam(t_onek, 2) # compare k = 2 & 3 (quite strange)
+autoplot(onek_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("onek_pamresults.svg",last_plot())
+```
+
+```{r}
+# PAM for tenk dataset
+t_tenk <- transpose(tenk_log_tpm_counts)
+rownames(t_tenk) = colnames(tenk_log_tpm_counts)
+tenk_pamResults <- pam(t_ten, 2)
+autoplot(tenk_pamResults, frame = TRUE, frame.type = 'norm')
+#ggsave("tenk_pamresults.svg",last_plot())
+```
+
+```{r}
+# Sankey Diagram
+library(ggalluvial)
+tenClust <- data.table(ten_pamResults$clustering)
+hunClust <- data.table(hundred_pamResults$clustering)
+onekClust <- data.table(onek_pamResults$clustering)
+fivekClust <- data.table(fivek_pamResults$clustering)
+tenkClust <- data.table(tenk_pamResults$clustering)
+clustInfo <- data.table(colnames(fivek_log_tpm_counts))
+l = list(clustInfo, tenClust, hunClust, onekClust, fivekClust, tenkClust)
+colnames(clustInfo)[1] = "samples"
+clustInfo$ten <- tenClust
+clustInfo$hundred <- hunClust
+clustInfo$onek <- onekClust
+clustInfo$fivek <- fivekClust
+clustInfo$tenk <- tenkClust
+clustInfo <- clustInfo[-1,]
+
+is_alluvia_form(clustInfo, axes = 2:6, silent = TRUE)
+```
+
+```{r}
+ggplot(clustInfo,
+      aes(axis1 = samples, axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
+  geom_alluvium(aes(fill = ten), width = 1/2, show.legend = FALSE) +
+  geom_stratum(width = 1/4, fill = "blue", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum),)) +
+  scale_x_discrete(limits = c("samples", "ten"), expand = c(.05, .05)) +
+  #scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle("Sample Clustering Based on # of Observations")
+```

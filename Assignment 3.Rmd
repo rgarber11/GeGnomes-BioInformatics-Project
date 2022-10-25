@@ -14,6 +14,7 @@ library(tidyverse)
 library(data.table)
 library(ggfortify)
 library(cluster)
+library(DESeq2)
 
 log_tpm_counts <- fread("fixed_logged_normalized_counts.csv")
 
@@ -47,33 +48,242 @@ library(factoextra)
 
 ```{r}
 # PAM for fivek dataset
-fivek_pamResults <- pam(fivek_log_tpm_counts[,2:57], 2)
+t_fiveK <- transpose(fivek_log_tpm_counts)
+rownames(t_fiveK) = colnames(fivek_log_tpm_counts)
+
+#colnames(t_fiveK) <- unlist(t_fiveK[1,]) // gives error "colnames don't exist"
+#t_fiveK <- t_fiveK[-1, ] 
+
+fivek_pamResults <- pam(t_fiveK, 2)
 autoplot(fivek_pamResults, frame = TRUE, frame.type = 'norm')
 #ggsave("fivek_pamresults.svg",last_plot())
 ```
+
 ```{r}
 # PAM for ten dataset
-ten_pamResults <- pam(ten_log_tpm_counts[,2:57], 2) # compare k = 1 & 2 (quite strange)
+t_ten <- transpose(ten_log_tpm_counts)
+rownames(t_ten) = colnames(ten_log_tpm_counts)
+ten_pamResults <- pam(t_ten, 2) 
 autoplot(ten_pamResults, frame = TRUE, frame.type = 'norm')
 #ggsave("ten_pamresults.svg",last_plot())
 ```
 
 ```{r}
 # PAM for hundred dataset
-hundred_pamResults <- pam(hundred_log_tpm_counts[,2:57], 3) # compare k = 2 & 3 (quite strange)
+t_hundred <- transpose(hundred_log_tpm_counts)
+rownames(t_hundred) = colnames(hundred_log_tpm_counts)
+hundred_pamResults <- pam(t_hundred, 2) # compare k = 2 & 3 (quite strange)
 autoplot(hundred_pamResults, frame = TRUE, frame.type = 'norm')
-#ggsave("hundred_pamresults.svg",last_plot())
+#ggsave("hundred_pamresults_k_2.svg",last_plot())
 ```
 ```{r}
 # PAM for onek dataset
-onek_pamResults <- pam(onek_log_tpm_counts[,2:57], 2) # compare k = 2 & 3 (quite strange)
+t_onek <- transpose(onek_log_tpm_counts)
+rownames(t_onek) = colnames(onek_log_tpm_counts)
+onek_pamResults <- pam(t_onek, 2) # compare k = 2 & 3 (quite strange)
 autoplot(onek_pamResults, frame = TRUE, frame.type = 'norm')
 #ggsave("onek_pamresults.svg",last_plot())
 ```
 
 ```{r}
 # PAM for tenk dataset
-tenk_pamResults <- pam(tenk_log_tpm_counts[,2:57], 2)
+t_tenk <- transpose(tenk_log_tpm_counts)
+rownames(t_tenk) = colnames(tenk_log_tpm_counts)
+tenk_pamResults <- pam(t_ten, 2)
 autoplot(tenk_pamResults, frame = TRUE, frame.type = 'norm')
 #ggsave("tenk_pamresults.svg",last_plot())
 ```
+
+```{r}
+# Sankey Diagram
+library(ggalluvial)
+tenClust <- data.table(ten_pamResults$clustering)
+hunClust <- data.table(hundred_pamResults$clustering)
+onekClust <- data.table(onek_pamResults$clustering)
+fivekClust <- data.table(fivek_pamResults$clustering)
+tenkClust <- data.table(tenk_pamResults$clustering)
+clustInfo <- data.table(colnames(fivek_log_tpm_counts))
+colnames(clustInfo)[1] = "samples"
+clustInfo$ten <- tenClust
+clustInfo$hundred <- hunClust
+clustInfo$onek <- onekClust
+clustInfo$fivek <- fivekClust
+clustInfo$tenk <- tenkClust
+clustInfo <- clustInfo[-1,]
+
+is_alluvia_form(clustInfo, axes = 2:6, silent = TRUE)
+```
+
+```{r}
+#FIXME: Can't make sample rectangles bigger (PROBS with SANKEY)
+ggplot(clustInfo,
+     aes(axis1 = samples, axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
+  geom_alluvium(aes(fill = ten), width = 1/2, show.legend = FALSE) +
+  geom_stratum(width = 1/2, fill = "blue", color = "grey") +
+  geom_stratum(width = 1/2, fill = "#d07cfc", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("samples", "ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
+  ggtitle("Sample Clustering Based on # of Observations")
+```
+
+```{r}
+#Kmeans Clustering with 5,000 genes
+
+#remove column with gene names
+fivek_counts_ns <- fivek_log_tpm_counts[,-1]
+
+#transpose data to cluster by sample
+t_fivek_counts <- transpose(fivek_counts_ns)
+
+#apply kmeans clustering algorithim for kvalues 1-4 and plot
+
+fivek_kmeans_1 <- kmeans(t_fivek_counts, 1, nstart = 25)
+autoplot(fivek_kmeans_1, t_fivek_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("fivek_kmeansresults_k_1.svg",last_plot())
+
+fivek_kmeans_2 <- kmeans(t_fivek_counts, 2, nstart = 25)
+autoplot(fivek_kmeans_2, t_fivek_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("fivek_kmeansresults_k_2.svg",last_plot())
+
+fivek_kmeans_3 <- kmeans(t_fivek_counts, 3, nstart = 25)
+autoplot(fivek_kmeans_3, t_fivek_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("fivek_kmeansresults_k_3.svg",last_plot())
+
+fivek_kmeans_4 <- kmeans(t_fivek_counts, 4, nstart = 25)
+autoplot(fivek_kmeans_4, t_fivek_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("fivek_kmeansresults_k_4.svg",last_plot())
+```
+
+```{r}
+#Kmeans Clustering with 10 genes
+
+#remove column with gene names
+ten_counts_ns <- ten_log_tpm_counts[,-1]
+
+#transpose data to cluster by sample
+t_ten_counts <- transpose(ten_counts_ns)
+
+#apply kmeans clustering algorithim for kvalues 1-4 and plot
+
+ten_kmeans_1 <- kmeans(t_ten_counts, 1, nstart = 25)
+autoplot(ten_kmeans_1, t_ten_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("ten_kmeansresults_k_1.svg",last_plot())
+
+ten_kmeans_2 <- kmeans(t_ten_counts, 2, nstart = 25)
+autoplot(ten_kmeans_2, t_ten_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("ten_kmeansresults_k_2.svg",last_plot())
+
+ten_kmeans_3 <- kmeans(t_ten_counts, 3, nstart = 25)
+autoplot(ten_kmeans_3, t_ten_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("ten_kmeansresults_k_3.svg",last_plot())
+
+ten_kmeans_4 <- kmeans(t_ten_counts, 4, nstart = 25)
+autoplot(ten_kmeans_4, t_ten_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("ten_kmeansresults_k_4.svg",last_plot())
+```
+
+```{r}
+#Kmeans Clustering with 100 genes
+
+#remove column with gene names
+hundred_counts_ns <- hundred_log_tpm_counts[,-1]
+
+#transpose data to cluster by sample
+t_hundred_counts <- transpose(hundred_counts_ns)
+
+#apply kmeans clustering algorithim for kvalues 1-4 and plot
+
+hundred_kmeans_1 <- kmeans(t_hundred_counts, 1, nstart = 25)
+autoplot(hundred_kmeans_1, t_hundred_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("hundred_kmeansresults_k_1.svg",last_plot())
+
+hundred_kmeans_2 <- kmeans(t_hundred_counts, 2, nstart = 25)
+autoplot(hundred_kmeans_2, t_hundred_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("hundred_kmeansresults_k_2.svg",last_plot())
+
+hundred_kmeans_3 <- kmeans(t_hundred_counts, 3, nstart = 25)
+autoplot(hundred_kmeans_3, t_hundred_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("hundred_kmeansresults_k_3.svg",last_plot())
+
+hundred_kmeans_4 <- kmeans(t_hundred_counts, 4, nstart = 25)
+autoplot(hundred_kmeans_4, t_hundred_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("hundred_kmeansresults_k_4.svg",last_plot())
+```
+
+```{r}
+#Kmeans Clustering with 1,000 genes
+
+#remove column with gene names
+onek_counts_ns <- onek_log_tpm_counts[,-1]
+
+#transpose data to cluster by sample
+t_onek_counts <- transpose(onek_counts_ns)
+
+#apply kmeans clustering algorithim for kvalues 1-4 and plot
+
+onek_kmeans_1 <- kmeans(t_onek_counts, 1, nstart = 25)
+autoplot(onek_kmeans_1, t_onek_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("onek_kmeansresults_k_1.svg",last_plot())
+
+onek_kmeans_2 <- kmeans(t_onek_counts, 2, nstart = 25)
+autoplot(onek_kmeans_2, t_onek_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("onek_kmeansresults_k_2.svg",last_plot())
+
+onek_kmeans_3 <- kmeans(t_onek_counts, 3, nstart = 25)
+autoplot(onek_kmeans_3, t_onek_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("onek_kmeansresults_k_3.svg",last_plot())
+
+onek_kmeans_4 <- kmeans(t_onek_counts, 4, nstart = 25)
+autoplot(onek_kmeans_4, t_onek_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("onek_kmeansresults_k_4.svg",last_plot())
+```
+
+```{r}
+#Kmeans Clustering with 10,000 genes
+
+#remove column with gene names
+tenk_counts_ns <- tenk_log_tpm_counts[,-1]
+
+#transpose data to cluster by sample
+t_tenk_counts <- transpose(tenk_counts_ns)
+
+#apply kmeans clustering algorithim for kvalues 1-4 and plot
+
+tenk_kmeans_1 <- kmeans(t_tenk_counts, 1, nstart = 25)
+autoplot(tenk_kmeans_1, t_tenk_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("tenk_kmeansresults_k_1.svg",last_plot())
+
+tenk_kmeans_2 <- kmeans(t_tenk_counts, 2, nstart = 25)
+autoplot(tenk_kmeans_2, t_tenk_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("tenk_kmeansresults_k_2.svg",last_plot())
+
+tenk_kmeans_3 <- kmeans(t_tenk_counts, 3, nstart = 25)
+autoplot(tenk_kmeans_3, t_tenk_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("tenk_kmeansresults_k_3.svg",last_plot())
+
+tenk_kmeans_4 <- kmeans(t_tenk_counts, 4, nstart = 25)
+autoplot(tenk_kmeans_4, t_tenk_counts , frames = TRUE, frame.type = 'norm')
+#ggsave("tenk_kmeansresults_k_4.svg",last_plot())
+```
+
+
+
+
+
+
+```{r}
+# attempting to do some sort of Chi Square (not sure if any of this is right FYI)
+metadata <- fread("GSE207751_PBMC_metadata.csv")
+metaCondensed <- metadata[,-c(2:5)]
+metaCondensed$condition[metaCondensed$condition=="ast"] <- 1 
+metaCondensed$condition[metaCondensed$condition=="healthy"] <- 2
+chiSqData <- metaCondensed
+chiSqData$fivekData = clustInfo[,5]
+summary <- chisq.test(chiSqData$condition,chiSqData$fivekData)
+#p.adjust(summary$p.value, n=4)
+
+```
+
+
+
+

@@ -95,8 +95,9 @@ autoplot(tenk_pamResults, frame = TRUE, frame.type = 'norm')
 ```
 
 ```{r}
-# Sankey Diagram
+# PAM Sankey Diagram
 library(ggalluvial)
+metadata <- fread("GSE207751_PBMC_metadata.csv")
 tenClust <- data.table(ten_pamResults$clustering)
 hunClust <- data.table(hundred_pamResults$clustering)
 onekClust <- data.table(onek_pamResults$clustering)
@@ -110,21 +111,18 @@ clustInfo$onek <- onekClust
 clustInfo$fivek <- fivekClust
 clustInfo$tenk <- tenkClust
 clustInfo <- clustInfo[-1,]
-
-is_alluvia_form(clustInfo, axes = 2:6, silent = TRUE)
-```
-
-```{r}
-#FIXME: Can't make sample rectangles bigger (PROBS with SANKEY)
+clustInfo$metadata <- metadata[,6]
+# PAM Sankey
 ggplot(clustInfo,
-     aes(axis1 = samples, axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
-  geom_alluvium(aes(fill = ten), width = 1/2, show.legend = FALSE) +
+     aes(axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
+  geom_alluvium(aes(fill = metadata), width = 1/2, show.legend = TRUE) +
   geom_stratum(width = 1/2, fill = "blue", color = "grey") +
-  geom_stratum(width = 1/2, fill = "#d07cfc", color = "grey") +
+  geom_stratum(width = 1/2, fill = "lightgray", color = "black") +
   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
-  scale_x_discrete(limits = c("samples", "ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
-  ggtitle("Sample Clustering Based on # of Observations")
+  scale_x_discrete(limits = c("ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
+  ggtitle("Sample Clustering Based on # of Variables")
 ```
+
 
 ```{r}
 #Kmeans Clustering with 5,000 genes
@@ -264,6 +262,39 @@ autoplot(tenk_kmeans_3, t_tenk_counts , frames = TRUE, frame.type = 'norm')
 tenk_kmeans_4 <- kmeans(t_tenk_counts, 4, nstart = 25)
 autoplot(tenk_kmeans_4, t_tenk_counts , frames = TRUE, frame.type = 'norm')
 #ggsave("tenk_kmeansresults_k_4.svg",last_plot())
+```
+
+
+
+```{r}
+# Kmeans Sankey Diagram of K = 2 Data
+
+#Combine K = 2 data into one table
+metadata <- fread("GSE207751_PBMC_metadata.csv")
+kclustInfo <- data.table(colnames(fivek_log_tpm_counts))
+kclustInfo <- kclustInfo[-1,]
+ktenClust <- data.table(ten_kmeans_2$cluster)
+khundredClust <- data.table(hundred_kmeans_2$cluster)
+konekClust <- data.table(onek_kmeans_2$cluster)
+kfivekClust <- data.table(fivek_kmeans_2$cluster)
+ktenkClust <- data.table(tenk_kmeans_2$cluster)
+colnames(kclustInfo)[1] = "samples"
+kclustInfo$ten <- ktenClust
+kclustInfo$hundred <- khundredClust
+kclustInfo$onek <- konekClust
+kclustInfo$fivek <- kfivekClust
+kclustInfo$tenk <- ktenkClust
+kclustInfo$metadata <- metadata[,6]
+
+# Create Sankey Plot of K = 2 Data
+ggplot(kclustInfo,
+     aes(axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
+  geom_alluvium(aes(fill = metadata), width = 1/2, show.legend = TRUE) +
+  geom_stratum(width = 1/2, fill = "blue", color = "grey") +
+  geom_stratum(width = 1/2, fill = "lightgray", color = "black") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
+  ggtitle("Sample Clustering Based on # of Variables")
 ```
 
 

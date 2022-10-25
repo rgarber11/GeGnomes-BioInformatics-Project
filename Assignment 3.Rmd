@@ -61,7 +61,7 @@ autoplot(ten_pamResults, frame = TRUE, frame.type = 'norm')
 # PAM for hundred dataset
 t_hundred <- transpose(hundred_log_tpm_counts)
 rownames(t_hundred) = colnames(hundred_log_tpm_counts)
-hundred_pamResults <- pam(t_hundred, 2) # compare k = 2 & 3 (quite strange)
+hundred_pamResults <- pam(t_hundred, 2)
 autoplot(hundred_pamResults, frame = TRUE, frame.type = 'norm')
 #ggsave("hundred_pamresults_k_2.svg",last_plot())
 ```
@@ -69,7 +69,7 @@ autoplot(hundred_pamResults, frame = TRUE, frame.type = 'norm')
 # PAM for onek dataset
 t_onek <- transpose(onek_log_tpm_counts)
 rownames(t_onek) = colnames(onek_log_tpm_counts)
-onek_pamResults <- pam(t_onek, 2) # compare k = 2 & 3 (quite strange)
+onek_pamResults <- pam(t_onek, 2)
 autoplot(onek_pamResults, frame = TRUE, frame.type = 'norm')
 #ggsave("onek_pamresults.svg",last_plot())
 ```
@@ -105,7 +105,7 @@ clustInfo$metadata <- metadata[,6]
 # PAM Sankey
 ggplot(clustInfo,
      aes(axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
-  geom_alluvium(aes(fill = metadata), width = 1/2, show.legend = TRUE) +
+  geom_alluvium(aes(fill = metadata), color = "black", width = 1/2, show.legend = TRUE) +
   geom_stratum(width = 1/2, fill = "blue", color = "grey") +
   geom_stratum(width = 1/2, fill = "lightgray", color = "black") +
   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
@@ -114,13 +114,18 @@ ggplot(clustInfo,
 ```
 
 ```{r}
-# attempting to do some sort of Chi Square (not sure if any of this is right FYI)
+# Chi Square for PAM compared to Metadata
 metaCondensed <- metadata[,-c(2:5)]
 metaCondensed$condition[metaCondensed$condition=="ast"] <- 1 
 metaCondensed$condition[metaCondensed$condition=="healthy"] <- 2
 chiSqData <- metaCondensed
-chiSqData$fivekData = clustInfo[,5]
-summary <- chisq.test(chiSqData$condition,chiSqData$fivekData)
-#p.adjust(summary$p.value, n=4)
+chiSqData$PAM = clustInfo[,5]
+summaryPAM <- chisq.test(table(chiSqData$condition,chiSqData$PAM))
+p.adjust(summaryPAM$p.value, n=2) # dependent (p low reject Ho)
+statTestResults <- data.table(c("p-value"=summaryPAM$p.value, "p-adj"=p.adjust(summaryPAM$p.value, n=2)))
+
+# Chi Square for K-Means compared to Metadata
+
+
 
 ```

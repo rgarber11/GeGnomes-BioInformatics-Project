@@ -14,7 +14,6 @@ library(tidyverse)
 library(data.table)
 library(ggfortify)
 library(cluster)
-library(DESeq2)
 
 log_tpm_counts <- fread("fixed_logged_normalized_counts.csv")
 
@@ -40,19 +39,9 @@ tenk_log_tpm_counts <- plusvar_log_tpm_counts[1:10000,1:57]
 ```
 
 ```{r}
-library(factoextra)
-# helps figure out optimal number of clusters for PAM per:
-# https://mlforanalytics.com/2020/05/23/pam-clustering-using-r/
-# fviz_nbclust(fivek_log_tpm_counts[,2:57], pam, method ="silhouette")+theme_minimal()
-```
-
-```{r}
 # PAM for fivek dataset
 t_fiveK <- transpose(fivek_log_tpm_counts)
 rownames(t_fiveK) = colnames(fivek_log_tpm_counts)
-
-#colnames(t_fiveK) <- unlist(t_fiveK[1,]) // gives error "colnames don't exist"
-#t_fiveK <- t_fiveK[-1, ] 
 
 fivek_pamResults <- pam(t_fiveK, 2)
 autoplot(fivek_pamResults, frame = TRUE, frame.type = 'norm')
@@ -95,8 +84,9 @@ autoplot(tenk_pamResults, frame = TRUE, frame.type = 'norm')
 ```
 
 ```{r}
-# Sankey Diagram
+# PAM Sankey Diagram
 library(ggalluvial)
+metadata <- fread("GSE207751_PBMC_metadata.csv")
 tenClust <- data.table(ten_pamResults$clustering)
 hunClust <- data.table(hundred_pamResults$clustering)
 onekClust <- data.table(onek_pamResults$clustering)
@@ -110,25 +100,21 @@ clustInfo$onek <- onekClust
 clustInfo$fivek <- fivekClust
 clustInfo$tenk <- tenkClust
 clustInfo <- clustInfo[-1,]
+clustInfo$metadata <- metadata[,6]
 
-is_alluvia_form(clustInfo, axes = 2:6, silent = TRUE)
-```
-
-```{r}
-#FIXME: Can't make sample rectangles bigger (PROBS with SANKEY)
+# PAM Sankey
 ggplot(clustInfo,
-     aes(axis1 = samples, axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
-  geom_alluvium(aes(fill = ten), width = 1/2, show.legend = FALSE) +
+     aes(axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
+  geom_alluvium(aes(fill = metadata), width = 1/2, show.legend = TRUE) +
   geom_stratum(width = 1/2, fill = "blue", color = "grey") +
-  geom_stratum(width = 1/2, fill = "#d07cfc", color = "grey") +
+  geom_stratum(width = 1/2, fill = "lightgray", color = "black") +
   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
-  scale_x_discrete(limits = c("samples", "ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
-  ggtitle("Sample Clustering Based on # of Observations")
+  scale_x_discrete(limits = c("ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
+  ggtitle("Sample Clustering Based on # of Variables")
 ```
 
 ```{r}
 # attempting to do some sort of Chi Square (not sure if any of this is right FYI)
-metadata <- fread("GSE207751_PBMC_metadata.csv")
 metaCondensed <- metadata[,-c(2:5)]
 metaCondensed$condition[metaCondensed$condition=="ast"] <- 1 
 metaCondensed$condition[metaCondensed$condition=="healthy"] <- 2

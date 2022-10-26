@@ -82,7 +82,7 @@ t_hundred <- t_hundred %>% mutate(across(everything(), as.numeric))
 hundred_pamResults <- pam(t_hundred, 2)
 autoplot(hundred_pamResults, frame = TRUE, frame.type = 'norm')
 colnames(t_hundred) <- hundred_log_tpm_counts$hgnc_symbol
-ggsave("hundred_pamresults_k_2.svg",last_plot())
+ggsave("hundred_pamresults.svg",last_plot())
 ```
 ```{r}
 # PAM for onek dataset

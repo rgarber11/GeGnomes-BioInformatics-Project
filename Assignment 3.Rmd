@@ -333,8 +333,8 @@ alluvial_data$`Sample Frequency` <- freqs[alluvial_data$unique]
 alluvial_data <- subset(alluvial_data, select = -unique)
 rownames(alluvial_data) <- NULL
 lodes_data <- to_lodes_form(alluvial_data, axes= 1:5, key = "Amount of Genes Used", value = "Cluster")
-ggplot(lodes_data, aes(y = `Sample Frequency`, x = `Amount of Genes Used`, stratum = `Cluster`, alluvium = alluvium, fill = `Cluster`, label = `Cluster`)) + scale_fill_brewer(type = "qual", palette = "Set3") + geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "darkgrey") + geom_stratum() +  scale_y_continuous(name = "Sample Frequency", limits =c(0, 57)) + ggtitle("ContinuousClusterPlus Sample Clustering Based on Number of Genes")
-ggsave("Alluvial_CCC.svg")
+ggplot(lodes_data, aes(y = `Sample Frequency`, x = `Amount of Genes Used`, stratum = `Cluster`, alluvium = alluvium, fill = `Cluster`, label = `Cluster`)) + scale_fill_brewer(type = "qual", palette = "Set3") + geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "darkgrey") + geom_stratum() +  scale_y_continuous(name = "Sample Frequency", limits =c(0, 57)) + ggtitle("ConsensusClusterPlus Sample Clustering Based on Number of Genes")
+ggsave("Alluvial_CCP.svg")
 ```
 ```{r}
 library(ComplexHeatmap)
@@ -348,15 +348,15 @@ cols_2 <- brewer.pal(3, "Set2")[1:2]
 names(cols_condition) <- c("healthy", "ast")
 names(cols_10) <- as.character(1:10)
 names(cols_2) <- as.character(1:2)
-ha <- rowAnnotation(Condition = as.data.frame(metadata) %>% select(c("Patient_id","condition")) %>% tibble::deframe(), PAM = as.character(fivek_pamResults$clustering), KMeans = as.character(kclustInfo %>% select(c("samples", "5000")) %>% tibble::deframe()),  CCC = as.character(results_5000[[10]]$consensusClass), col = list(Condition = cols_condition, PAM = cols_2, KMeans = cols_2, CCC = cols_10), show_legend = c(KMeans = FALSE), annotation_legend_param = list(PAM = list(title = "k = 2"), CCC = list(title = "k = 10", labels = as.character(1:10))))
+ha <- rowAnnotation(Condition = as.data.frame(metadata) %>% select(c("Patient_id","condition")) %>% tibble::deframe(), PAM = as.character(fivek_pamResults$clustering), KMeans = as.character(kclustInfo %>% select(c("samples", "5000")) %>% tibble::deframe()),  CCP = as.character(results_5000[[10]]$consensusClass), col = list(Condition = cols_condition, PAM = cols_2, KMeans = cols_2, CCP = cols_10), show_legend = c(KMeans = FALSE), annotation_legend_param = list(PAM = list(title = "k = 2"), CCP = list(title = "k = 10", labels = as.character(1:10))))
 ht <- Heatmap(top_5000_matrix, name="Expression", column_title = "Top 5000 Genes by Variance", column_title_side = "bottom", right_annotation = ha)
 draw(ht)
-# svg("heatmap.svg", width = 32, height = 20)
-# draw(ht)
-# dev.off()
-# png("heatmap.png", width = 2560, height = 1600)
-# draw(ht)
-# dev.off
+ svg("heatmap.svg", width = 32, height = 20)
+ draw(ht, use_raster = FALSE)
+ dev.off()
+ png("heatmap.png", width = 2560, height = 1600)
+ draw(ht)
+ dev.off
 ```
 
 
@@ -369,7 +369,7 @@ metaCondensed <- metadata[,-c(2:5)]
 chiSqData <- metaCondensed
 chiSqData$PAM = clustInfo[,5]
 summaryConditionPAM <- chisq.test(table(chiSqData$condition,chiSqData$PAM))
-#p.adjust(summaryConditionPAM$p.value, n=6) # dependent (p low reject Ho) n = 3 as there are 6 different hypotheses (condition v PAM, condition v KMeans, condition v CCC, PAM v KMeans, PAM v CCC, KMeans v CCC)
+#p.adjust(summaryConditionPAM$p.value, n=6) # dependent (p low reject Ho) n = 3 as there are 6 different hypotheses (condition v PAM, condition v KMeans, condition v CCP, PAM v KMeans, PAM v CCP, KMeans v CCP)
 statTestResults <- list()
 statTestResults$ConditionPAM = c("p-value"=summaryConditionPAM$p.value, "p-adj"=p.adjust(summaryConditionPAM$p.value, n=6))
 # Chi Square for K-Means compared to Metadata
@@ -377,21 +377,21 @@ chiSqData$KMeans = kclustInfo[,4]
 summaryConditionKMEANS <- chisq.test(table(chiSqData$condition,chiSqData$KMeans))
 #p.adjust(summaryKMEANS$p.value, n=2) # dependent (p low reject Ho)
 statTestResults$ConditionKMEANS = c("p-value"=summaryConditionKMEANS$p.value, "p-adj"=p.adjust(summaryConditionKMEANS$p.value, n=6))
-chiSqData$CCC <- results_5000[[10]]$consensusClass
-summaryConditionCCC <- chisq.test(table(chiSqData$condition, chiSqData$CCC))
-statTestResults$ConditionCCC <- c("p-value"=summaryConditionCCC$p.value, "p-adj"=p.adjust(summaryConditionCCC$p.value, n=6))
+chiSqData$CCP <- results_5000[[10]]$consensusClass
+summaryConditionCCP <- chisq.test(table(chiSqData$condition, chiSqData$CCP))
+statTestResults$ConditionCCP <- c("p-value"=summaryConditionCCP$p.value, "p-adj"=p.adjust(summaryConditionCCP$p.value, n=6))
 summaryPAMKMeans <- chisq.test(table(chiSqData$PAM, chiSqData$KMeans))
 statTestResults$PAMKMeans <- c("p-value"=summaryPAMKMeans$p.value, "p-adj"=p.adjust(summaryPAMKMeans$p.value, n=6))
-summaryPAMCCC <- chisq.test(table(chiSqData$PAM, chiSqData$CCC))
-statTestResults$PAMCCC <- c("p-value"=summaryPAMCCC$p.value, "p-adj"=p.adjust(summaryPAMCCC$p.value, n=6))
-summaryKMeansCCC <- chisq.test(table(chiSqData$KMeans, chiSqData$CCC))
-statTestResults$KMeansCCC <- c("p-value"=summaryKMeansCCC$p.value, "p-adj"=p.adjust(summaryKMeansCCC$p.value, n=6))
+summaryPAMCCP <- chisq.test(table(chiSqData$PAM, chiSqData$CCP))
+statTestResults$PAMCCP <- c("p-value"=summaryPAMCCP$p.value, "p-adj"=p.adjust(summaryPAMCCP$p.value, n=6))
+summaryKMeansCCP <- chisq.test(table(chiSqData$KMeans, chiSqData$CCP))
+statTestResults$KMeansCCP <- c("p-value"=summaryKMeansCCP$p.value, "p-adj"=p.adjust(summaryKMeansCCP$p.value, n=6))
 statTestResults <- as.data.frame(statTestResults)
 statTestResults
 chiSqData <- chiSqData %>% mutate(across(c(3:5), as.character))
-chiSqData$CCC <- paste0("\U00A0", chiSqData$CCC) #Put columns in correct order
-chiSqData$CCC[chiSqData$CCC == paste0("\U00A0","10")] <- "10" #Not super efficient, but works
-pm <- ggpairs(chiSqData, mapping = aes(color = condition), title = "Comparison of PAM, KMeans, CCC and experimental clustering", columns = 2:5, lower = list(
+chiSqData$CCP <- paste0("\U00A0", chiSqData$CCP) #Put columns in correct order
+chiSqData$CCP[chiSqData$CCP == paste0("\U00A0","10")] <- "10" #Not super efficient, but works
+pm <- ggpairs(chiSqData, mapping = aes(color = condition), title = "Comparison of PAM, KMeans, CCP and experimental clustering", columns = 2:5, lower = list(
   discrete = "autopoint"
 ), diag = list(
   discrete = "densityDiag"
@@ -399,13 +399,6 @@ pm <- ggpairs(chiSqData, mapping = aes(color = condition), title = "Comparison o
   discrete = "facetbar"
 ))
 pm
-#ggsave("enrichment_plot.svg", width=10, height=10)
-
-```
-
-
-```{r}
-metaCondensed_Vector <- metaCondensed %>% tibble::deframe()
-top_5000_counts_data_healthy <- top_5000_counts_data[, metaCondensed_Vector[colnames(top_5000_counts_data)] == "healthy"]
+ggsave("enrichment_plot.svg", width=10, height=10)
 
 ```

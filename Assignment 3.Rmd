@@ -52,9 +52,9 @@ library(factoextra)
 ```{r}
 # PAM for fivek dataset
 t_fiveK <- data.table::transpose(fivek_log_tpm_counts)
-row.names(t_fiveK) = colnames(fivek_log_tpm_counts)
 t_fiveK <- t_fiveK[-1] #Original included hgnc_symbol in group
-t_fiveK <- t_fiveK %>% mutate(across(everything(), as.numeric)) #Original turned 0s into characters which messed with pam
+t_fiveK <- as.data.frame(t_fiveK %>% mutate(across(everything(), as.numeric))) #Original turned 0s into characters which messed with pam
+row.names(t_fiveK) = colnames(fivek_log_tpm_counts)[-1]
 fivek_pamResults <- pam(t_fiveK, 2)
 autoplot(fivek_pamResults, data = t_fiveK, frame = TRUE, frame.type = 'norm')
 colnames(t_fiveK) <- fivek_log_tpm_counts$hgnc_symbol #add in genenames for posterity
@@ -64,9 +64,9 @@ colnames(t_fiveK) <- fivek_log_tpm_counts$hgnc_symbol #add in genenames for post
 ```{r}
 # PAM for ten dataset
 t_ten <- data.table::transpose(ten_log_tpm_counts)
-rownames(t_ten) = colnames(ten_log_tpm_counts)
 t_ten <- t_ten[-1]
-t_ten <- t_ten %>% mutate(across(everything(), as.numeric))
+t_ten <- as.data.frame(t_ten %>% mutate(across(everything(), as.numeric)))
+row.names(t_ten) = colnames(ten_log_tpm_counts)[-1]
 ten_pamResults <- pam(t_ten, 2) 
 autoplot(ten_pamResults, frame = TRUE, frame.type = 'norm')
 colnames(t_ten) <- ten_log_tpm_counts$hgnc_symbol
@@ -76,9 +76,9 @@ colnames(t_ten) <- ten_log_tpm_counts$hgnc_symbol
 ```{r}
 # PAM for hundred dataset
 t_hundred <- data.table::transpose(hundred_log_tpm_counts)
-rownames(t_hundred) = colnames(hundred_log_tpm_counts)
 t_hundred <- t_hundred[-1]
-t_hundred <- t_hundred %>% mutate(across(everything(), as.numeric))
+t_hundred <- as.data.frame(t_hundred %>% mutate(across(everything(), as.numeric)))
+row.names(t_hundred) = colnames(hundred_log_tpm_counts)[-1]
 hundred_pamResults <- pam(t_hundred, 2)
 autoplot(hundred_pamResults, frame = TRUE, frame.type = 'norm')
 colnames(t_hundred) <- hundred_log_tpm_counts$hgnc_symbol
@@ -87,9 +87,9 @@ colnames(t_hundred) <- hundred_log_tpm_counts$hgnc_symbol
 ```{r}
 # PAM for onek dataset
 t_onek <- data.table::transpose(onek_log_tpm_counts)
-rownames(t_onek) = colnames(onek_log_tpm_counts)
 t_onek <- t_onek[-1]
-t_onek <- t_onek %>% mutate(across(everything(), as.numeric))
+t_onek <- as.data.frame(t_onek %>% mutate(across(everything(), as.numeric)))
+row.names(t_onek) = colnames(onek_log_tpm_counts)[-1]
 onek_pamResults <- pam(t_onek, 2)
 autoplot(onek_pamResults, frame = TRUE, frame.type = 'norm')
 colnames(t_onek) <- onek_log_tpm_counts$hgnc_symbol
@@ -99,9 +99,9 @@ colnames(t_onek) <- onek_log_tpm_counts$hgnc_symbol
 ```{r}
 # PAM for tenk dataset
 t_tenk <- data.table::transpose(tenk_log_tpm_counts)
-rownames(t_tenk) = colnames(tenk_log_tpm_counts)
 t_tenk <- t_tenk[-1]
-t_tenk <- t_tenk %>% mutate(across(everything(), as.numeric))
+t_tenk <- as.data.frame(t_tenk %>% mutate(across(everything(), as.numeric)))
+row.names(t_tenk) = colnames(tenk_log_tpm_counts)[-1]
 tenk_pamResults <- pam(t_ten, 2)
 autoplot(tenk_pamResults, frame = TRUE, frame.type = 'norm')
 colnames(t_tenk) <- tenk_log_tpm_counts$hgnc_symbol
@@ -138,7 +138,7 @@ ggsave("Alluvial_PAM.svg")
 ```
 
 ```{r}
-#Kmeans Clustering with 5,000 genes
+#KMeans Clustering with 5,000 genes
 #preforming kmeans with 5 thousand genes
 #remove first column as kmeans can not take non-numeric values #EDITED OUT NON NEEDED WORK
 #apply kmeans clustering algorithim for kvalues 1-4 and plot
@@ -181,7 +181,7 @@ autoplot(ten_kmeans_4, t_ten , frames = TRUE, frame.type = 'norm')
 ```
 
 ```{r}
-#Kmeans Clustering with 100 genes
+#KMeans Clustering with 100 genes
 
 #remove column with gene names #EDITED TO USE PREVIOUS WORK
 # hundred_counts_ns <- hundred_log_tpm_counts[,-1]
@@ -209,7 +209,7 @@ autoplot(hundred_kmeans_4, t_hundred , frames = TRUE, frame.type = 'norm')
 ```
 
 ```{r}
-#Kmeans Clustering with 1,000 genes
+#KMeans Clustering with 1,000 genes
 
 #remove column with gene names
 #onek_counts_ns <- onek_log_tpm_counts[,-1]
@@ -237,7 +237,7 @@ autoplot(onek_kmeans_4, t_onek , frames = TRUE, frame.type = 'norm')
 ```
 
 ```{r}
-#Kmeans Clustering with 10,000 genes
+#KMeans Clustering with 10,000 genes
 
 #remove column with gene names
 #tenk_counts_ns <- tenk_log_tpm_counts[,-1]
@@ -265,7 +265,7 @@ autoplot(tenk_kmeans_4, t_tenk , frames = TRUE, frame.type = 'norm')
 ```
 
 ```{r}
-# Kmeans Sankey Diagram of K = 2 Data
+# KMeans Sankey Diagram of K = 2 Data
 
 #Combine K = 2 data into one table
 kclustInfo <- data.table(colnames(fivek_log_tpm_counts))
@@ -371,22 +371,24 @@ chiSqData$PAM = clustInfo[,5]
 summaryConditionPAM <- chisq.test(table(chiSqData$condition,chiSqData$PAM))
 #p.adjust(summaryConditionPAM$p.value, n=6) # dependent (p low reject Ho) n = 3 as there are 6 different hypotheses (condition v PAM, condition v KMeans, condition v CCP, PAM v KMeans, PAM v CCP, KMeans v CCP)
 statTestResults <- list()
-statTestResults$ConditionPAM = c("p-value"=summaryConditionPAM$p.value, "p-adj"=p.adjust(summaryConditionPAM$p.value, n=6))
+statTestResults$ConditionPAM = c("p-value"=summaryConditionPAM$p.value)
 # Chi Square for K-Means compared to Metadata
 chiSqData$KMeans = kclustInfo[,4]
-summaryConditionKMEANS <- chisq.test(table(chiSqData$condition,chiSqData$KMeans))
-#p.adjust(summaryKMEANS$p.value, n=2) # dependent (p low reject Ho)
-statTestResults$ConditionKMEANS = c("p-value"=summaryConditionKMEANS$p.value, "p-adj"=p.adjust(summaryConditionKMEANS$p.value, n=6))
+summaryConditionKMeans <- chisq.test(table(chiSqData$condition,chiSqData$KMeans))
+#p.adjust(summaryKMeans$p.value, n=2) # dependent (p low reject Ho)
+statTestResults$ConditionKMeans = c("p-value"=summaryConditionKMeans$p.value)
 chiSqData$CCP <- results_5000[[10]]$consensusClass
 summaryConditionCCP <- chisq.test(table(chiSqData$condition, chiSqData$CCP))
-statTestResults$ConditionCCP <- c("p-value"=summaryConditionCCP$p.value, "p-adj"=p.adjust(summaryConditionCCP$p.value, n=6))
+statTestResults$ConditionCCP <- c("p-value"=summaryConditionCCP$p.value)
 summaryPAMKMeans <- chisq.test(table(chiSqData$PAM, chiSqData$KMeans))
-statTestResults$PAMKMeans <- c("p-value"=summaryPAMKMeans$p.value, "p-adj"=p.adjust(summaryPAMKMeans$p.value, n=6))
+statTestResults$PAMKMeans <- c("p-value"=summaryPAMKMeans$p.value)
 summaryPAMCCP <- chisq.test(table(chiSqData$PAM, chiSqData$CCP))
-statTestResults$PAMCCP <- c("p-value"=summaryPAMCCP$p.value, "p-adj"=p.adjust(summaryPAMCCP$p.value, n=6))
+statTestResults$PAMCCP <- c("p-value"=summaryPAMCCP$p.value)
 summaryKMeansCCP <- chisq.test(table(chiSqData$KMeans, chiSqData$CCP))
-statTestResults$KMeansCCP <- c("p-value"=summaryKMeansCCP$p.value, "p-adj"=p.adjust(summaryKMeansCCP$p.value, n=6))
-statTestResults <- as.data.frame(statTestResults)
+statTestResults$KMeansCCP <- c("p-value"=summaryKMeansCCP$p.value)
+statTestResults <- mutate(as.data.frame(statTestResults), across(everything(), as.numeric))
+statTestResults <- as.data.frame(rbind(statTestResults, p.adjust(as.vector(statTestResults))))
+row.names(statTestResults) <- c("p-value", "p-adj")
 statTestResults
 chiSqData <- chiSqData %>% mutate(across(c(3:5), as.character))
 chiSqData$CCP <- paste0("\U00A0", chiSqData$CCP) #Put columns in correct order
@@ -399,6 +401,6 @@ pm <- ggpairs(chiSqData, mapping = aes(color = condition), title = "Comparison o
   discrete = "facetbar"
 ))
 pm
-ggsave("enrichment_plot.svg", width=10, height=10)
+# ggsave("enrichment_plot.svg", width=10, height=10)
 
 ```

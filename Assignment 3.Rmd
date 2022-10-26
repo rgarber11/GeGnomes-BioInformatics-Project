@@ -119,22 +119,22 @@ fivekClust <- data.table(fivek_pamResults$clustering)
 tenkClust <- data.table(tenk_pamResults$clustering)
 clustInfo <- data.table(colnames(fivek_log_tpm_counts))[-1]
 colnames(clustInfo)[1] = "samples"
-clustInfo$ten <- tenClust
-clustInfo$hundred <- hunClust
-clustInfo$onek <- onekClust
-clustInfo$fivek <- fivekClust
-clustInfo$tenk <- tenkClust
-clustInfo$metadata <- metadata[,6]
+clustInfo$`10` <- tenClust
+clustInfo$`100` <- hunClust
+clustInfo$`1000` <- onekClust
+clustInfo$`5000` <- fivekClust
+clustInfo$`10000` <- tenkClust
+clustInfo$Condition <- metadata[,6]
 # PAM Sankey
 ggplot(clustInfo,
-     aes(axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
-  geom_alluvium(aes(fill = metadata), color = "black", width = 1/2, show.legend = TRUE) +
+     aes(axis2 = `10`, axis3 = `100`, axis4 = `1000`, axis5= `5000`, axis6 = `10000`)) +
+  geom_alluvium(aes(fill = Condition), color = "black", width = 1/2, show.legend = TRUE) +
   geom_stratum(width = 1/2, fill = "blue", color = "grey") +
   geom_stratum(width = 1/2, fill = "lightgray", color = "black") +
   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
-  scale_x_discrete(limits = c("ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
-  ggtitle("Sample Clustering Based on # of Variables")
-#ggsave("Alluvial_PAM.svg")
+  scale_x_discrete(limits = c("10", "100", "1000", "5000", "10000"), expand = c(.05, .05)) +
+  ggtitle("PAM Sample Clustering Based on Number of Genes") + ylab("Sample Frequency") + xlab("Amount of Genes")
+ggsave("Alluvial_PAM.svg")
 ```
 
 ```{r}
@@ -276,23 +276,23 @@ konekClust <- data.table(onek_kmeans_2$cluster)
 kfivekClust <- data.table(fivek_kmeans_2$cluster)
 ktenkClust <- data.table(tenk_kmeans_2$cluster)
 colnames(kclustInfo)[1] = "samples"
-kclustInfo$ten <- ktenClust
-kclustInfo$hundred <- khundredClust
-kclustInfo$onek <- konekClust
-kclustInfo$fivek <- kfivekClust
-kclustInfo$tenk <- ktenkClust
-kclustInfo$metadata <- metadata[,6]
+kclustInfo$`10` <- ktenClust
+kclustInfo$`100` <- khundredClust
+kclustInfo$`1000` <- konekClust
+kclustInfo$`5000` <- kfivekClust
+kclustInfo$`10000` <- ktenkClust
+kclustInfo$Condition <- metadata[,6]
 
 # Create Sankey Plot of K = 2 Data
 ggplot(kclustInfo,
-     aes(axis2 = ten, axis3 = hundred, axis4 = onek, axis5= fivek, axis6 = tenk)) +
-  geom_alluvium(aes(fill = metadata), width = 1/2, show.legend = TRUE) +
+     aes(axis2 = `10`, axis3 = `100`, axis4 = `1000`, axis5= `5000`, axis6 = `10000`)) +
+  geom_alluvium(aes(fill = Condition), width = 1/2, show.legend = TRUE) +
   geom_stratum(width = 1/2, fill = "blue", color = "grey") +
   geom_stratum(width = 1/2, fill = "lightgray", color = "black") +
   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
-  scale_x_discrete(limits = c("ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
-  ggtitle("Sample Clustering Based on # of Variables")
-#ggsave("Alluvial_KMeans.svg")
+  scale_x_discrete(limits = c("10", "100", "1000", "5000", "10000"), expand = c(.05, .05)) +
+  ggtitle("KMeans Sample Clustering Based on Number of Genes") + ylab("Sample Frequency") + xlab("Amount of Genes")
+ggsave("Alluvial_KMeans.svg")
 ```
 
 ```{r}
@@ -325,16 +325,16 @@ alluvial_data <- setNames(inner_join(inner_join(inner_join(inner_join(rownames_t
                                                   rownames_to_column(as.data.frame(results_1000[[10]]$consensusClass))), 
                                        rownames_to_column(as.data.frame(results_5000[[10]]$consensusClass))), 
                             rownames_to_column(as.data.frame(results_10000[[10]]$consensusClass))), 
-                          c("Samples", "10 Genes", "100 Genes", "1000 Genes", "5000 Genes", "10000 Genes")) %>% column_to_rownames("Samples")
-alluvial_data$unique <- paste(as.character(alluvial_data$`10 Genes`), as.character(alluvial_data$`100 Genes`), as.character(alluvial_data$`1000 Genes`), as.character(alluvial_data$`5000 Genes`), as.character(alluvial_data$`10000 Genes`))
+                          c("Samples", "10", "100", "1000", "5000", "10000")) %>% column_to_rownames("Samples")
+alluvial_data$unique <- paste(as.character(alluvial_data$`10`), as.character(alluvial_data$`100`), as.character(alluvial_data$`1000`), as.character(alluvial_data$`5000`), as.character(alluvial_data$`10000`))
 freqs <- table(alluvial_data$unique)
 alluvial_data <- distinct(alluvial_data)
 alluvial_data$`Sample Frequency` <- freqs[alluvial_data$unique]
 alluvial_data <- subset(alluvial_data, select = -unique)
 rownames(alluvial_data) <- NULL
 lodes_data <- to_lodes_form(alluvial_data, axes= 1:5, key = "Amount of Genes Used", value = "Cluster")
-ggplot(lodes_data, aes(y = `Sample Frequency`, x = `Amount of Genes Used`, stratum = `Cluster`, alluvium = alluvium, fill = `Cluster`, label = `Cluster`)) + scale_fill_brewer(type = "qual", palette = "Set3") + geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "darkgrey") + geom_stratum() +  scale_y_continuous(name = "Sample Frequency", limits =c(0, 57)) + ggtitle("ConsensusClusterPlus by Amount of Variable Genes Used (k=10)")
-#ggsave("Alluvial_CCC.svg")
+ggplot(lodes_data, aes(y = `Sample Frequency`, x = `Amount of Genes Used`, stratum = `Cluster`, alluvium = alluvium, fill = `Cluster`, label = `Cluster`)) + scale_fill_brewer(type = "qual", palette = "Set3") + geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "darkgrey") + geom_stratum() +  scale_y_continuous(name = "Sample Frequency", limits =c(0, 57)) + ggtitle("ContinuousClusterPlus Sample Clustering Based on Number of Genes")
+ggsave("Alluvial_CCC.svg")
 ```
 ```{r}
 library(ComplexHeatmap)
@@ -348,7 +348,7 @@ cols_2 <- brewer.pal(3, "Set2")[1:2]
 names(cols_condition) <- c("healthy", "ast")
 names(cols_10) <- as.character(1:10)
 names(cols_2) <- as.character(1:2)
-ha <- rowAnnotation(Condition = as.data.frame(metadata) %>% select(c("Patient_id","condition")) %>% tibble::deframe(), PAM = as.character(fivek_pamResults$clustering), KMeans = as.character(kclustInfo %>% select(c("samples", "fivek")) %>% tibble::deframe()),  CCC = as.character(results_5000[[10]]$consensusClass), col = list(Condition = cols_condition, PAM = cols_2, KMeans = cols_2, CCC = cols_10), show_legend = c(KMeans = FALSE), annotation_legend_param = list(PAM = list(title = "k = 2"), CCC = list(title = "k = 10", labels = as.character(1:10))))
+ha <- rowAnnotation(Condition = as.data.frame(metadata) %>% select(c("Patient_id","condition")) %>% tibble::deframe(), PAM = as.character(fivek_pamResults$clustering), KMeans = as.character(kclustInfo %>% select(c("samples", "5000")) %>% tibble::deframe()),  CCC = as.character(results_5000[[10]]$consensusClass), col = list(Condition = cols_condition, PAM = cols_2, KMeans = cols_2, CCC = cols_10), show_legend = c(KMeans = FALSE), annotation_legend_param = list(PAM = list(title = "k = 2"), CCC = list(title = "k = 10", labels = as.character(1:10))))
 ht <- Heatmap(top_5000_matrix, name="Expression", column_title = "Top 5000 Genes by Variance", column_title_side = "bottom", right_annotation = ha)
 draw(ht)
 # svg("heatmap.svg", width = 32, height = 20)
@@ -399,7 +399,7 @@ pm <- ggpairs(chiSqData, mapping = aes(color = condition), title = "Comparison o
   discrete = "facetbar"
 ))
 pm
-ggsave("enrichment_plot.svg", width=10, height=10)
+#ggsave("enrichment_plot.svg", width=10, height=10)
 
 ```
 

@@ -6,24 +6,23 @@ date: "2022-10-19"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+source("CustomConsensusClusterPlus.R") #Added SVG Functionality to ConsensusClusterPlus
 ```
 
 
 ```{r}
 if (!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
-BiocManager::install(c("data.table", "ConsensusClusterPlus", "tidyverse", "svglite", "ggalluvial", "ComplexHeatmap", "circlize", "ggfortify", "magick"))
+BiocManager::install(c("data.table", "tidyverse", "svglite", "ggalluvial", "ComplexHeatmap", "circlize", "ggfortify", "magick"))
 library(tidyverse)
 library(data.table)
 library(ggfortify)
 library(cluster)
 library(svglite)
-library(ConsensusClusterPlus)
 
 log_tpm_counts <- fread("fixed_logged_normalized_counts.csv")
 
 ```
-
 
 ```{r}
 # creating redundant dataset to make changes to
@@ -47,7 +46,7 @@ tenk_log_tpm_counts <- plusvar_log_tpm_counts[1:10000,1:57]
 library(factoextra)
 # helps figure out optimal number of clusters for PAM per:
 # https://mlforanalytics.com/2020/05/23/pam-clustering-using-r/
-# fviz_nbclust(fivek_log_tpm_counts[,2:57], pam, method ="silhouette")+theme_minimal()
+# fviz_nbclust(fivek_log_tpm_counts[,2:57] %>% mutate(across(everything(), as.numeric)), pam, method ="silhouette")+theme_minimal()
 ```
 
 ```{r}
@@ -59,7 +58,7 @@ t_fiveK <- t_fiveK %>% mutate(across(everything(), as.numeric)) #Original turned
 fivek_pamResults <- pam(t_fiveK, 2)
 autoplot(fivek_pamResults, data = t_fiveK, frame = TRUE, frame.type = 'norm')
 colnames(t_fiveK) <- fivek_log_tpm_counts$hgnc_symbol #add in genenames for posterity
-#ggsave("fivek_pamresults.svg",last_plot())
+ggsave("fivek_pamresults.svg",last_plot())
 ```
 
 ```{r}
@@ -71,7 +70,7 @@ t_ten <- t_ten %>% mutate(across(everything(), as.numeric))
 ten_pamResults <- pam(t_ten, 2) 
 autoplot(ten_pamResults, frame = TRUE, frame.type = 'norm')
 colnames(t_ten) <- ten_log_tpm_counts$hgnc_symbol
-#ggsave("ten_pamresults.svg",last_plot())
+ggsave("ten_pamresults.svg",last_plot())
 ```
 
 ```{r}
@@ -83,7 +82,7 @@ t_hundred <- t_hundred %>% mutate(across(everything(), as.numeric))
 hundred_pamResults <- pam(t_hundred, 2)
 autoplot(hundred_pamResults, frame = TRUE, frame.type = 'norm')
 colnames(t_hundred) <- hundred_log_tpm_counts$hgnc_symbol
-#ggsave("hundred_pamresults_k_2.svg",last_plot())
+ggsave("hundred_pamresults_k_2.svg",last_plot())
 ```
 ```{r}
 # PAM for onek dataset
@@ -94,7 +93,7 @@ t_onek <- t_onek %>% mutate(across(everything(), as.numeric))
 onek_pamResults <- pam(t_onek, 2)
 autoplot(onek_pamResults, frame = TRUE, frame.type = 'norm')
 colnames(t_onek) <- onek_log_tpm_counts$hgnc_symbol
-#ggsave("onek_pamresults.svg",last_plot())
+ggsave("onek_pamresults.svg",last_plot())
 ```
 
 ```{r}
@@ -106,7 +105,7 @@ t_tenk <- t_tenk %>% mutate(across(everything(), as.numeric))
 tenk_pamResults <- pam(t_ten, 2)
 autoplot(tenk_pamResults, frame = TRUE, frame.type = 'norm')
 colnames(t_tenk) <- tenk_log_tpm_counts$hgnc_symbol
-#ggsave("tenk_pamresults.svg",last_plot())
+ggsave("tenk_pamresults.svg",last_plot())
 ```
 
 ```{r}
@@ -135,7 +134,7 @@ ggplot(clustInfo,
   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
   scale_x_discrete(limits = c("ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
   ggtitle("Sample Clustering Based on # of Variables")
-
+ggsave("Alluvial_PAM.svg")
 ```
 
 ```{r}
@@ -146,19 +145,19 @@ ggplot(clustInfo,
 
 fivek_kmeans_1 <- kmeans(t_fiveK, 1, nstart = 25)
 autoplot(fivek_kmeans_1, data=t_fiveK, frames = TRUE, frame.type = 'norm')
-#ggsave("fivek_kmeansresults_k_1.svg",last_plot())
+ggsave("fivek_kmeansresults_k_1.svg",last_plot())
 
 fivek_kmeans_2 <- kmeans(t_fiveK, 2, nstart = 25)
 autoplot(fivek_kmeans_2, t_fiveK , frames = TRUE, frame.type = 'norm')
-#ggsave("fivek_kmeansresults_k_2.svg",last_plot())
+ggsave("fivek_kmeansresults_k_2.svg",last_plot())
 
 fivek_kmeans_3 <- kmeans(t_fiveK, 3, nstart = 25)
 autoplot(fivek_kmeans_3, t_fiveK , frames = TRUE, frame.type = 'norm')
-#ggsave("fivek_kmeansresults_k_3.svg",last_plot())
+ggsave("fivek_kmeansresults_k_3.svg",last_plot())
 
 fivek_kmeans_4 <- kmeans(t_fiveK, 4, nstart = 25)
 autoplot(fivek_kmeans_4, t_fiveK , frames = TRUE, frame.type = 'norm')
-#ggsave("fivek_kmeansresults_k_4.svg",last_plot())
+ggsave("fivek_kmeansresults_k_4.svg",last_plot())
 ```
 
 ```{r}
@@ -166,19 +165,19 @@ autoplot(fivek_kmeans_4, t_fiveK , frames = TRUE, frame.type = 'norm')
 
 ten_kmeans_1 <- kmeans(t_ten, 1, nstart = 25)
 autoplot(ten_kmeans_1, t_ten , frames = TRUE, frame.type = 'norm')
-#ggsave("ten_kmeansresults_k_1.svg",last_plot())
+ggsave("ten_kmeansresults_k_1.svg",last_plot())
 
 ten_kmeans_2 <- kmeans(t_ten, 2, nstart = 25)
 autoplot(ten_kmeans_2, t_ten , frames = TRUE, frame.type = 'norm')
-#ggsave("ten_kmeansresults_k_2.svg",last_plot())
+ggsave("ten_kmeansresults_k_2.svg",last_plot())
 
 ten_kmeans_3 <- kmeans(t_ten, 3, nstart = 25)
 autoplot(ten_kmeans_3, t_ten , frames = TRUE, frame.type = 'norm')
-#ggsave("ten_kmeansresults_k_3.svg",last_plot())
+ggsave("ten_kmeansresults_k_3.svg",last_plot())
 
 ten_kmeans_4 <- kmeans(t_ten, 4, nstart = 25)
 autoplot(ten_kmeans_4, t_ten , frames = TRUE, frame.type = 'norm')
-#ggsave("ten_kmeansresults_k_4.svg",last_plot())
+ggsave("ten_kmeansresults_k_4.svg",last_plot())
 ```
 
 ```{r}
@@ -194,19 +193,19 @@ autoplot(ten_kmeans_4, t_ten , frames = TRUE, frame.type = 'norm')
 
 hundred_kmeans_1 <- kmeans(t_hundred, 1, nstart = 25)
 autoplot(hundred_kmeans_1, t_hundred , frames = TRUE, frame.type = 'norm')
-#ggsave("hundred_kmeansresults_k_1.svg",last_plot())
+ggsave("hundred_kmeansresults_k_1.svg",last_plot())
 
 hundred_kmeans_2 <- kmeans(t_hundred, 2, nstart = 25)
 autoplot(hundred_kmeans_2, t_hundred , frames = TRUE, frame.type = 'norm')
-#ggsave("hundred_kmeansresults_k_2.svg",last_plot())
+ggsave("hundred_kmeansresults_k_2.svg",last_plot())
 
 hundred_kmeans_3 <- kmeans(t_hundred, 3, nstart = 25)
 autoplot(hundred_kmeans_3, t_hundred , frames = TRUE, frame.type = 'norm')
-#ggsave("hundred_kmeansresults_k_3.svg",last_plot())
+ggsave("hundred_kmeansresults_k_3.svg",last_plot())
 
 hundred_kmeans_4 <- kmeans(t_hundred, 4, nstart = 25)
 autoplot(hundred_kmeans_4, t_hundred , frames = TRUE, frame.type = 'norm')
-#ggsave("hundred_kmeansresults_k_4.svg",last_plot())
+ggsave("hundred_kmeansresults_k_4.svg",last_plot())
 ```
 
 ```{r}
@@ -222,19 +221,19 @@ autoplot(hundred_kmeans_4, t_hundred , frames = TRUE, frame.type = 'norm')
 
 onek_kmeans_1 <- kmeans(t_onek, 1, nstart = 25)
 autoplot(onek_kmeans_1, t_onek , frames = TRUE, frame.type = 'norm')
-#ggsave("onek_kmeansresults_k_1.svg",last_plot())
+ggsave("onek_kmeansresults_k_1.svg",last_plot())
 
 onek_kmeans_2 <- kmeans(t_onek, 2, nstart = 25)
 autoplot(onek_kmeans_2, t_onek , frames = TRUE, frame.type = 'norm')
-#ggsave("onek_kmeansresults_k_2.svg",last_plot())
+ggsave("onek_kmeansresults_k_2.svg",last_plot())
 
 onek_kmeans_3 <- kmeans(t_onek, 3, nstart = 25)
 autoplot(onek_kmeans_3, t_onek , frames = TRUE, frame.type = 'norm')
-#ggsave("onek_kmeansresults_k_3.svg",last_plot())
+ggsave("onek_kmeansresults_k_3.svg",last_plot())
 
 onek_kmeans_4 <- kmeans(t_onek, 4, nstart = 25)
 autoplot(onek_kmeans_4, t_onek , frames = TRUE, frame.type = 'norm')
-#ggsave("onek_kmeansresults_k_4.svg",last_plot())
+ggsave("onek_kmeansresults_k_4.svg",last_plot())
 ```
 
 ```{r}
@@ -250,19 +249,19 @@ autoplot(onek_kmeans_4, t_onek , frames = TRUE, frame.type = 'norm')
 
 tenk_kmeans_1 <- kmeans(t_tenk, 1, nstart = 25)
 autoplot(tenk_kmeans_1, t_tenk , frames = TRUE, frame.type = 'norm')
-#ggsave("tenk_kmeansresults_k_1.svg",last_plot())
+ggsave("tenk_kmeansresults_k_1.svg",last_plot())
 
 tenk_kmeans_2 <- kmeans(t_tenk, 2, nstart = 25)
 autoplot(tenk_kmeans_2, t_tenk , frames = TRUE, frame.type = 'norm')
-#ggsave("tenk_kmeansresults_k_2.svg",last_plot())
+ggsave("tenk_kmeansresults_k_2.svg",last_plot())
 
 tenk_kmeans_3 <- kmeans(t_tenk, 3, nstart = 25)
 autoplot(tenk_kmeans_3, t_tenk , frames = TRUE, frame.type = 'norm')
-#ggsave("tenk_kmeansresults_k_3.svg",last_plot())
+ggsave("tenk_kmeansresults_k_3.svg",last_plot())
 
 tenk_kmeans_4 <- kmeans(t_tenk, 4, nstart = 25)
 autoplot(tenk_kmeans_4, t_tenk , frames = TRUE, frame.type = 'norm')
-#ggsave("tenk_kmeansresults_k_4.svg",last_plot())
+ggsave("tenk_kmeansresults_k_4.svg",last_plot())
 ```
 
 ```{r}
@@ -293,6 +292,7 @@ ggplot(kclustInfo,
   geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
   scale_x_discrete(limits = c("ten", "hundred", "onek", "fivek", "tenk"), expand = c(.05, .05)) +
   ggtitle("Sample Clustering Based on # of Variables")
+ggsave("Alluvial_KMeans.svg")
 ```
 
 ```{r}
@@ -301,7 +301,7 @@ seed_val <- runif(1, min = 0.01 , max = 2^31) # For completeness all runs with d
 
 ```{r}
 top_10_counts_data <- as.data.frame(ten_log_tpm_counts) %>% tibble::column_to_rownames("hgnc_symbol") %>% as.matrix 
-results_10 <- ConsensusClusterPlus(top_10_counts_data, maxK=20, reps=1000, pItem=0.8, pFeature = 1, title="Top 10 Genes", clusterAlg = "hc", distance = "pearson", seed = seed_val, plot = "svg")
+results_10 <- ConsensusClusterPlus(top_10_counts_data, maxK=20, reps=1000, pItem=0.8, pFeature = 1, title="Top 10 Genes", clusterAlg = "hc", distance = "pearson", seed = seed_val, plot="svg")
 ```
 ```{r}
 top_100_counts_data <- as.data.frame(hundred_log_tpm_counts) %>% tibble::column_to_rownames("hgnc_symbol") %>% as.matrix 
@@ -334,6 +334,7 @@ alluvial_data <- subset(alluvial_data, select = -unique)
 rownames(alluvial_data) <- NULL
 lodes_data <- to_lodes_form(alluvial_data, axes= 1:5, key = "Amount of Genes Used", value = "Cluster")
 ggplot(lodes_data, aes(y = `Sample Frequency`, x = `Amount of Genes Used`, stratum = `Cluster`, alluvium = alluvium, fill = `Cluster`, label = `Cluster`)) + scale_fill_brewer(type = "qual", palette = "Set3") + geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "darkgrey") + geom_stratum() +  scale_y_continuous(name = "Sample Frequency", limits =c(0, 57)) + ggtitle("ConsensusClusterPlus by Amount of Variable Genes Used (k=10)")
+ggsave("Alluvial_CCC.svg")
 ```
 ```{r}
 library(ComplexHeatmap)

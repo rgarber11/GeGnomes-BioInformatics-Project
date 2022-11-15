@@ -19,6 +19,10 @@ library(data.table)
 library(ggfortify)
 library(cluster)
 library(svglite)
+library(GGally)
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
 
 log_tpm_counts <- fread("fixed_logged_normalized_counts.csv")
 
@@ -139,8 +143,8 @@ ggsave("Alluvial_PAM.svg")
 
 ```{r}
 #KMeans Clustering with 5,000 genes
-#preforming kmeans with 5 thousand genes
-#remove first column as kmeans can not take non-numeric values #EDITED OUT NON NEEDED WORK
+#performing k-means with 5 thousand genes
+
 #apply kmeans clustering algorithim for kvalues 1-4 and plot
 
 fivek_kmeans_1 <- kmeans(t_fiveK, 1, nstart = 25)
@@ -336,10 +340,9 @@ lodes_data <- to_lodes_form(alluvial_data, axes= 1:5, key = "Amount of Genes Use
 ggplot(lodes_data, aes(y = `Sample Frequency`, x = `Amount of Genes Used`, stratum = `Cluster`, alluvium = alluvium, fill = `Cluster`, label = `Cluster`)) + scale_fill_brewer(type = "qual", palette = "Set3") + geom_flow(stat = "alluvium", lode.guidance = "frontback", color = "darkgrey") + geom_stratum() +  scale_y_continuous(name = "Sample Frequency", limits =c(0, 57)) + ggtitle("ConsensusClusterPlus Sample Clustering Based on Number of Genes")
 ggsave("Alluvial_CCP.svg")
 ```
+
 ```{r}
-library(ComplexHeatmap)
-library(circlize)
-library(RColorBrewer)
+# Heatmap
 top_5000_matrix <- t(as.matrix(top_5000_counts_data))
 colnames(top_5000_matrix) <- NULL
 cols_10 <- brewer.pal(10, "Paired")
@@ -361,38 +364,46 @@ draw(ht)
 
 
 ```{r} 
-library(GGally) # I think this section is the wrong idea!!!!!
 # Chi Square for PAM compared to Metadata
 metaCondensed <- metadata[,-c(2:5)]
-#metaCondensed$condition[metaCondensed$condition=="ast"] <- 1 
-#metaCondensed$condition[metaCondensed$condition=="healthy"] <- 2
 chiSqData <- metaCondensed
 chiSqData$PAM = clustInfo[,5]
 summaryConditionPAM <- chisq.test(table(chiSqData$condition,chiSqData$PAM))
-#p.adjust(summaryConditionPAM$p.value, n=6) # dependent (p low reject Ho) n = 3 as there are 6 different hypotheses (condition v PAM, condition v KMeans, condition v CCP, PAM v KMeans, PAM v CCP, KMeans v CCP)
 statTestResults <- list()
 statTestResults$ConditionPAM = c("p-value"=summaryConditionPAM$p.value)
+
 # Chi Square for K-Means compared to Metadata
 chiSqData$KMeans = kclustInfo[,4]
 summaryConditionKMeans <- chisq.test(table(chiSqData$condition,chiSqData$KMeans))
-#p.adjust(summaryKMeans$p.value, n=2) # dependent (p low reject Ho)
 statTestResults$ConditionKMeans = c("p-value"=summaryConditionKMeans$p.value)
 chiSqData$CCP <- results_5000[[10]]$consensusClass
+
+# Chi Square for CCP compared to Metadata
 summaryConditionCCP <- chisq.test(table(chiSqData$condition, chiSqData$CCP))
 statTestResults$ConditionCCP <- c("p-value"=summaryConditionCCP$p.value)
+
+# Chi Square for K-Means compared to PAM
 summaryPAMKMeans <- chisq.test(table(chiSqData$PAM, chiSqData$KMeans))
 statTestResults$PAMKMeans <- c("p-value"=summaryPAMKMeans$p.value)
+
+# Chi Square for CCP compared to PAM
 summaryPAMCCP <- chisq.test(table(chiSqData$PAM, chiSqData$CCP))
 statTestResults$PAMCCP <- c("p-value"=summaryPAMCCP$p.value)
+
+# Chi Square for CCP compared to K-Means
 summaryKMeansCCP <- chisq.test(table(chiSqData$KMeans, chiSqData$CCP))
 statTestResults$KMeansCCP <- c("p-value"=summaryKMeansCCP$p.value)
+
+# Combine results into list and p-adjust
 statTestResults <- mutate(as.data.frame(statTestResults), across(everything(), as.numeric))
 statTestResults <- as.data.frame(rbind(statTestResults, p.adjust(as.vector(statTestResults))))
 row.names(statTestResults) <- c("p-value", "p-adj")
 statTestResults
+
+# create plot
 chiSqData <- chiSqData %>% mutate(across(c(3:5), as.character))
 chiSqData$CCP <- paste0("\U00A0", chiSqData$CCP) #Put columns in correct order
-chiSqData$CCP[chiSqData$CCP == paste0("\U00A0","10")] <- "10" #Not super efficient, but works
+chiSqData$CCP[chiSqData$CCP == paste0("\U00A0","10")] <- "10"
 pm <- ggpairs(chiSqData, mapping = aes(color = condition), title = "Comparison of PAM, KMeans, CCP and experimental clustering", columns = 2:5, lower = list(
   discrete = "autopoint"
 ), diag = list(
@@ -402,5 +413,4 @@ pm <- ggpairs(chiSqData, mapping = aes(color = condition), title = "Comparison o
 ))
 pm
 # ggsave("enrichment_plot.svg", width=10, height=10)
-
 ```

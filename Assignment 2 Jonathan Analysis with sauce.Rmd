@@ -1,0 +1,216 @@
+---
+title: "Assignment 2 Jonathan Analysis 2"
+output: html_document
+date: "2022-09-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Part 1:
+```{r}
+#Dependencies
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(c("biomaRt", "DESeq2", "EDASeq", "M3C", "EnhancedVolcano", "ComplexHeatmap", "svglite", "data.table"))
+library(tidyverse)
+library(data.table)
+library(biomaRt)
+library("DESeq2")
+library("EDASeq")
+library("ggplot2")
+library("svglite")
+#Load Necessary Data
+counts_data <- fread("GSE207751_PBMC_counts.csv")
+counts_data$Sum <- apply(counts_data[, 3:57], MARGIN = 1, FUN = sum, na.rm = TRUE)
+counts_data <- counts_data[Sum >= 10]
+counts_data <- counts_data[, !"Sum", with=FALSE]
+metadata <- fread("GSE207751_PBMC_metadata.csv")
+mart <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+#Use biomaRt to convert to from Ensembl to hgnc
+mapped_data <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol"), filters = "ensembl_gene_id", values = counts_data$gene_id, mart=mart)
+#Remove ones without map
+mapped_data <-  data.table(mapped_data[!(is.na(mapped_data$hgnc_symbol) | mapped_data$hgnc_symbol==""), ])
+#combine tables
+setkey(mapped_data, "ensembl_gene_id")
+setkey(counts_data, "gene_id")
+counts_data_filtered_hgnc <- (mapped_data[counts_data, nomatch=0])
+
+```
+```{r}
+#If gene_lengths have been found, no need to refind them
+if(file.exists("gene_lengths.csv")) {
+  gene_lengths_table <- fread("gene_lengths.csv")
+} else {
+  gene_lengths <- getGeneLengthAndGCContent(counts_data_filtered_hgnc$ensembl_gene_id, org="hsa")
+  gene_lengths_table <- setDT(as.data.frame(gene_lengths), keep.rownames = "ensembl_gene_id")
+  fwrite(gene_lengths_table, "gene_lengths.csv")
+}
+counts_data_hgnc_only <- counts_data_filtered_hgnc[, !"ensembl_gene_id", with=FALSE]
+counts_data_hgnc_only <- counts_data_hgnc_only[, by = hgnc_symbol, lapply(.SD, median), .SDcols = c(2:57)]
+```
+
+```{r}
+#Normalize Counts
+gene_lengths_table$length <- gene_lengths_table$length / 1000;
+gene_lengths_table <- gene_lengths_table[, c("ensembl_gene_id", "length")]
+setkey(gene_lengths_table, "ensembl_gene_id")
+tpm_counts_data <- gene_lengths_table[counts_data_filtered_hgnc, nomatch=0]
+tpm_counts_data <- tpm_counts_data %>% mutate(across(c(4:59), .fns= ~./length))
+tpm_counts_data <- tpm_counts_data %>% mutate(across(c(4:59), .fns=~./(sum(.)/1000000)))
+tpm_counts_data <- tpm_counts_data[, !c("ensembl_gene_id","length"), with=FALSE]
+tpm_counts_data <- tpm_counts_data[, by = hgnc_symbol, lapply(.SD, median), .SDcols = c(2:57)]
+```
+
+
+```{r}
+#Log specify
+log_tpm_counts <- tpm_counts_data
+log_tpm_counts[, 2:57] <- log_tpm_counts[, 2:57] + 1
+log_tpm_counts[, 2:57] <- log(log_tpm_counts[, 2:57], 2)
+log_tpm_counts$Min <- apply(log_tpm_counts[, 2:57], MARGIN=1, FUN=min, na.rm=TRUE)
+log_tpm_counts$Max <- apply(log_tpm_counts[, 2:57], MARGIN=1, FUN=max, na.rm=TRUE)
+log_tpm_counts$Range <- log_tpm_counts[, Max-Min]
+```
+
+```{r}
+# Create density plot
+density_plot_table <- log_tpm_counts[, c("hgnc_symbol", "Range")]
+density_plot <- ggplot(density_plot_table, aes(x=Range)) + geom_density() + ggtitle("Density of Log2 Expression")
+density_plot
+#As you can see, most data has a low expression, with some highly expressed genes
+```
+Part 2:
+```{r}
+#PCA Plot
+counts_df <- round((data.frame(counts_data_hgnc_only) %>% tibble::column_to_rownames("hgnc_symbol")), 0)
+dds <- DESeqDataSetFromMatrix(countData = counts_df,
+                               colData = metadata,
+                               design = ~ condition)
+vsd <- vst(dds, blind=FALSE)
+pca_plot <- plotPCA(vsd, intgroup="condition") + ggtitle("PCA Plot of VST Expression Data")
+pca_plot
+```
+
+```{r}
+#Trying TSNE
+library(M3C)
+vsd_data <- assay(vsd)
+tsne_plot <- tsne(vsd_data, labels = metadata$condition) + ggtitle("TSNE Plot of VST Data")
+tsne_plot
+```
+```{r}
+#Trying UMAP
+umap_plot <- umap(vsd_data, labels = metadata$condition) + ggtitle("UMAP of VST Data")
+umap_plot
+```
+Part 3: 
+```{r}
+deseq_data <- DESeq(dds)
+# had to force the correct experimental group vs control group...had no effect on our p-value but changes LFC.
+deseq_data$condition <- relevel(deseq_data$condition, ref = "healthy")
+deseq_data <- DESeq(deseq_data)
+resultsNames(deseq_data)
+deseq_results <- results(deseq_data, name='condition_ast_vs_healthy', contrast=c('condition','ast','healthy'))
+head(deseq_results)
+```
+
+
+```{r}
+deseq_results <- lfcShrink(
+  deseq_data, # The original DESeq2 object after running DESeq()
+  coef = 2, # The log fold change coefficient used in DESeq(); the default is 2.
+  res = deseq_results # The original DESeq2 results table
+)
+```
+
+```{r}
+# this is of class DESeqResults -- we want a data frame
+deseq_df <- deseq_results %>%
+  # make into data.frame
+  as.data.frame() %>%
+  # the gene names are row names -- let's make them a column for easy display
+  tibble::rownames_to_column("Gene") %>%
+  # add a column for significance threshold results
+  dplyr::mutate(threshold = padj < 0.05) %>%
+  # sort by statistic -- the highest values will be genes with
+  # higher expression in RPL10 mutated samples
+  dplyr::arrange(dplyr::desc(log2FoldChange))
+```
+
+
+```{r}
+head(deseq_df)
+```
+
+```{r}
+# We'll assign this as `volcano_plot`
+volcano_plot <- EnhancedVolcano::EnhancedVolcano(
+  deseq_df,
+  lab = deseq_df$Gene,
+  x = "log2FoldChange",
+  y = "padj",
+  pCutoff = 0.01 # Loosen the cutoff since we supplied corrected p-values
+)
+volcano_plot
+
+```
+As the volcano plot shows, we had zero statistically significant differentially expressed genes. Therefore, we will try to continue our analysis with genes that were differentially expressed based on log-fold change.
+
+```{r}
+diffex_df <- deseq_df[deseq_df$log2FoldChange > 1,]
+diffex_df <- full_join(diffex_df, deseq_df[deseq_df$log2FoldChange < -1,])
+head(diffex_df)
+```
+
+Part 4:
+```{r}
+library(ComplexHeatmap)
+library(circlize)
+#Getting the log_tpm_counts for the differentially expressed genes. I'm using log since it makes our scale smaller, and since differences in gene expression are more important relative to how much the gene was already expressed, rather than absolute values.
+diffex_genes <- diffex_df$Gene
+diffex_logs <- log_tpm_counts[hgnc_symbol %in% diffex_genes]
+diffex_logs <- diffex_logs[, !c("Min", "Max", "Range"), with=FALSE]
+#Next, I separate the data based on condition, and compute the mean log values for each gene by condition.
+ast_patients <- metadata[condition == "ast"]$Patient_id
+setnames(diffex_logs, ast_patients, paste0("AST ", ast_patients))
+healthy_patients <- metadata[condition == "healthy"]$Patient_id
+setnames(diffex_logs, healthy_patients, paste0("HEALTHY ", healthy_patients))
+heatmap_df <- as.data.frame(diffex_logs) %>% tibble::column_to_rownames("hgnc_symbol")
+healthy_cols <- c("hgnc_symbol", paste0("HEALTHY ", healthy_patients))
+healthy_vals <- diffex_logs[, ..healthy_cols]
+healthy_vals$"Healthy Median" <- apply(healthy_vals[, 2:15], MARGIN=1, FUN = median, na.rm=TRUE)
+healthy_vals <- healthy_vals[, `Healthy Median`:=as.numeric(`Healthy Median`)]
+healthy_matrix <- as.matrix(as.data.frame(healthy_vals[, c("hgnc_symbol", "Healthy Median")]) %>% tibble::column_to_rownames("hgnc_symbol"))
+ast_cols <- c("hgnc_symbol", paste0("AST ", ast_patients))
+ast_vals <- diffex_logs[, ..ast_cols]
+ast_vals$"AST Median" <- apply(ast_vals, MARGIN=1, FUN = median, na.rm=TRUE)
+ast_vals <- ast_vals[, "AST Median":=as.numeric(`AST Median`)]
+ast_matrix <- as.matrix(as.data.frame(ast_vals[, c("hgnc_symbol", "AST Median")]) %>% tibble::column_to_rownames("hgnc_symbol"))
+heatmap_df <- t(heatmap_df)
+ha1 <- HeatmapAnnotation("healthy (Median)" = healthy_matrix, "ast (Median)" = ast_matrix)
+ht <- Heatmap(heatmap_df, name = "Log2 Normalized Expression", column_title = "Expression of Differentially Expressed Genes", top_annotation = ha1)
+draw(ht)
+```
+Part 5:
+```{r}
+#Gene Ontologies, using Biological Processes (BP), Cellular Component (CC), and REAC (pathway database)
+
+library(gprofiler2)
+gostres <- gost(query = list("Biological Processes Ontology" = diffex_df$Gene), sources = "GO:BP")
+gostres2 <- gost(query = list("Cellular Component Ontology" = diffex_df$Gene), sources = "GO:CC")
+gostres3 <- gost(query = list("REAC Ontology" = diffex_df$Gene), sources = "REAC")
+# BP Table
+head(gostres$result)
+
+# CC Table
+head(gostres2$result)
+
+# REAC Table
+head(gostres3$result)
+
+#plots of each respective GO query with highlighted terms attached for additional information
+pp1 <- publish_gostplot(gostplot(gostres, capped = TRUE, interactive = FALSE) , highlight_terms = gostres$result[c(1:3),]) + theme(plot.background = element_rect(fill = "white"))
+pp2 <- publish_gostplot(gostplot(gostres2, capped = TRUE, interactive = FALSE), highlight_terms = gostres2$result[c(1:6),])+ theme(plot.background = element_rect(fill = "white"))
+pp3 <- publish_gostplot(gostplot(gostres3, capped = TRUE, interactive = FALSE), highlight_terms = gostres3$result[c(1),])+ theme(plot.background = element_rect(fill = "white"))
+```
